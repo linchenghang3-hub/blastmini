@@ -17,3 +17,4 @@ src/blastmini/*.egg-info/
 tests/__pycache__/
 *.log
 .DS_Store
+data/ecoli_blastn_db*
