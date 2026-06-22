@@ -1,0 +1,34 @@
+name: blastmini-dev
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # 核心 Python 版本
+  - python=3.10
+  # 核心依赖（与 pyproject.toml 保持一致）
+  - numpy>=1.20.0
+  # 测试相关
+  - pytest>=7.0
+  - pytest-cov>=3.0
+  # 文档构建
+  - sphinx>=7.0
+  - sphinx-rtd-theme>=2.0
+  # 工作流相关（如需在本地运行 Snakemake）
+  - snakemake>=7.25.0
+  # 数据分析和绘图
+  - pandas
+  - matplotlib
+  - seaborn
+  # 性能监控
+  - psutil
+  # 可选：更精确的内存监控
+  - memory-profiler
+  # 开发工具（代码检查）
+  - flake8
+  - autoflake
+  - isort
+  # 可选：用于 benchmark
+  - pip
+  - pip:
+    - -e .
