@@ -189,7 +189,7 @@ Same subject ID ratio: 100.00%
 
 ## 📄 分工
 
-在本项目中，吴宇轩负责基础功能和scr文件夹下的实现，PPT的制作，林成航负责所有代码的测试和benchmarks、docs、Snakemeke、github上传、data数据库构建、Docker容器化、pyproject配置、environment环境编写，汤羽翔负责后期整理、介绍和视频剪辑。
+在本项目中，吴宇轩负责基础功能和scr文件夹下的实现，PPT的制作，林成航负责所有代码的测试和benchmarks、docs、Snakemake、github上传、data数据库构建、Docker容器化、pyproject配置、environment环境编写，汤羽翔负责后期整理、介绍和视频剪辑。
 
 ---
 
@@ -201,21 +201,5 @@ Same subject ID ratio: 100.00%
 
 ---
 
-## 🚀 提交并推送
-
-```bash
-cd /home/linchenghang/biancheng/blastmini
-
-# 添加 README
-git add README.md
-
-# 如果有其他未提交的更改，一并添加
-git add .
-
-# 提交
-git commit -m "Add comprehensive README.md"
-
-# 推送到远程 main 分支
-git push origin HEAD:main
 ```
 
