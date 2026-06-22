@@ -2,8 +2,8 @@ name: Deploy Sphinx documentation to GitHub Pages
 
 on:
   push:
-    branches: [main]  # 当推送到 main 分支时触发
-  workflow_dispatch:   
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,13 +29,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # 安装项目本身以及文档构建所需的 sphinx 依赖
-          pip install -e .[docs]
+          pip install sphinx sphinx-rtd-theme
+          pip install -e .
+
+      - name: Verify Sphinx installation
+        run: python -m sphinx --version
 
       - name: Build HTML documentation
         run: |
           cd docs
-          make html
+          python -m sphinx -b html source/ build/html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
