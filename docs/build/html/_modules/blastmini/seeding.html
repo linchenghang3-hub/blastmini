@@ -1,0 +1,835 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.seeding &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.seeding</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.seeding 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Seed search module for blastmini.</span>
+
+<span class="sd">This module implements the seeding phase of the BLAST algorithm, which is</span>
+<span class="sd">responsible for finding initial matches (seeds) between query sequences</span>
+<span class="sd">and the indexed database. The seeding phase is critical for efficiency</span>
+<span class="sd">as it reduces the search space from O(mn) to O(m * k_mer_matches).</span>
+
+<span class="sd">Key features:</span>
+<span class="sd">    - Query k-mer extraction with position tracking</span>
+<span class="sd">    - Dictionary-based seed finding using the k-mer index</span>
+<span class="sd">    - Seed clustering (merge nearby seeds)</span>
+<span class="sd">    - Seed filtering based on score and position</span>
+<span class="sd">    - Support for single and multiple query sequences</span>
+<span class="sd">    - Progress tracking for large queries</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.index</span><span class="w"> </span><span class="kn">import</span> <span class="n">KmerIndex</span><span class="p">,</span> <span class="n">extract_kmers</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlignmentConfig</span><span class="p">,</span> <span class="n">SequenceRecord</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Seed Data Structures</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="Seed">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.Seed">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Seed</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A single seed match between query and subject sequences.</span>
+
+<span class="sd">    A seed represents a k-mer match that serves as a starting point</span>
+<span class="sd">    for the extension phase.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        query_id: Identifier of the query sequence.</span>
+<span class="sd">        subject_id: Identifier of the subject sequence.</span>
+<span class="sd">        query_pos: Position in the query sequence (0-based).</span>
+<span class="sd">        subject_pos: Position in the subject sequence (0-based).</span>
+<span class="sd">        kmer: The k-mer that formed this seed.</span>
+<span class="sd">        score: Initial seed score (default 0, can be used for filtering).</span>
+<span class="sd">        strand: &#39;+&#39; for same strand, &#39;-&#39; for reverse complement.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; seed = Seed(&quot;Q1&quot;, &quot;S1&quot;, 10, 100, &quot;ATCGAT&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(seed)</span>
+<span class="sd">        Seed(Q1 -&gt; S1 at query=10, subject=100)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">subject_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">query_pos</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">subject_pos</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">kmer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">strand</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;+&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Seed(query=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="si">}</span><span class="s2">&#39;, subject=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;q_pos=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_pos</span><span class="si">}</span><span class="s2">, s_pos=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_pos</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;strand=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">strand</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Seed.distance_to">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.Seed.distance_to">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">distance_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Seed&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the distance between two seeds on the query axis.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            other: Another seed to compare with.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Absolute distance in query positions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query_pos</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">query_pos</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Seed.is_on_same_diagonal">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.Seed.is_on_same_diagonal">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_on_same_diagonal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Seed&#39;</span><span class="p">,</span> <span class="n">max_offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if two seeds lie on the same diagonal.</span>
+
+<span class="sd">        Two seeds are on the same diagonal if the difference between</span>
+<span class="sd">        their query and subject positions is similar (allowing some offset).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            other: Another seed to compare with.</span>
+<span class="sd">            max_offset: Maximum allowed offset in diagonal difference.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True if seeds are on the same diagonal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">diag1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_pos</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_pos</span>
+        <span class="n">diag2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">subject_pos</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">query_pos</span>
+        <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="n">diag1</span> <span class="o">-</span> <span class="n">diag2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">max_offset</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SeedCluster">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedCluster">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SeedCluster</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A cluster of nearby seeds on the same diagonal.</span>
+
+<span class="sd">    Clustering seeds helps identify regions with multiple matches,</span>
+<span class="sd">    which increases confidence and improves extension quality.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        query_id: Query sequence ID.</span>
+<span class="sd">        subject_id: Subject sequence ID.</span>
+<span class="sd">        seeds: List of seeds in the cluster.</span>
+<span class="sd">        strand: &#39;+&#39; or &#39;-&#39; for the strand orientation.</span>
+<span class="sd">        query_range: (start, end) of the cluster on the query.</span>
+<span class="sd">        subject_range: (start, end) of the cluster on the subject.</span>
+<span class="sd">        total_score: Sum of all seed scores.</span>
+<span class="sd">        density: Number of seeds per unit length.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; cluster = SeedCluster(&quot;Q1&quot;, &quot;S1&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; cluster.add_seed(Seed(&quot;Q1&quot;, &quot;S1&quot;, 10, 100))</span>
+<span class="sd">        &gt;&gt;&gt; cluster.add_seed(Seed(&quot;Q1&quot;, &quot;S1&quot;, 15, 105))</span>
+<span class="sd">        &gt;&gt;&gt; print(cluster)</span>
+<span class="sd">        SeedCluster(Q1 -&gt; S1: 2 seeds, range q=10-15, s=100-105)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">subject_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">strand</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;+&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="c1"># Sort seeds by query position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">query_pos</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_ranges</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SeedCluster.add_seed">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedCluster.add_seed">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_seed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="n">Seed</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a seed to the cluster.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">query_pos</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_ranges</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_update_ranges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the query and subject ranges.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">query_range</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">query_pos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">query_pos</span><span class="p">)</span>
+        <span class="c1"># Subject range may be non-contiguous, but we use min/max</span>
+        <span class="n">subject_positions</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">subject_pos</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject_range</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">subject_positions</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">subject_positions</span><span class="p">))</span>
+
+        <span class="c1"># Calculate density: seeds per 100 bases</span>
+        <span class="n">q_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">q_len</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">density</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">)</span> <span class="o">/</span> <span class="n">q_len</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">density</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Total score (assuming each seed has equal weight for now)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_score</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SeedCluster(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">: empty)&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SeedCluster(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">: &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">)</span><span class="si">}</span><span class="s2"> seeds, q=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_range</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;s=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_range</span><span class="si">}</span><span class="s2">, density=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">density</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SeedCluster.max_score_seed">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedCluster.max_score_seed">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">max_score_seed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Seed</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the seed with the highest score in the cluster.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">score</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Seed Finder</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="SeedFinder">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedFinder">[文档]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SeedFinder</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds seeds by matching query k-mers against the index.</span>
+
+<span class="sd">    This class implements the core seeding algorithm, including k-mer</span>
+<span class="sd">    extraction, dictionary lookup, and seed clustering.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        index: KmerIndex object containing the database.</span>
+<span class="sd">        config: AlignmentConfig with parameters.</span>
+<span class="sd">        canonical: Whether to use canonical k-mers.</span>
+<span class="sd">        min_seed_score: Minimum seed score to keep.</span>
+<span class="sd">        max_seed_cluster_gap: Maximum gap to cluster seeds together.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from blastmini.index import KmerIndex</span>
+<span class="sd">        &gt;&gt;&gt; from blastmini.io import parse_fasta</span>
+<span class="sd">        &gt;&gt;&gt; records = list(parse_fasta(&quot;database.fa&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; idx = KmerIndex.build(records, k=11)</span>
+<span class="sd">        &gt;&gt;&gt; finder = SeedFinder(idx)</span>
+<span class="sd">        &gt;&gt;&gt; seeds = finder.find_seeds(records[0])</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Found {len(seeds)} seeds&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">index</span><span class="p">:</span> <span class="n">KmerIndex</span><span class="p">,</span>
+            <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlignmentConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">min_seed_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">max_seed_cluster_gap</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+            <span class="n">max_seeds_per_region</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the seed finder.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index: K-mer index to search against.</span>
+<span class="sd">            config: Alignment configuration (uses defaults if None).</span>
+<span class="sd">            canonical: Use canonical k-mers.</span>
+<span class="sd">            min_seed_score: Minimum score for a seed (default 1).</span>
+<span class="sd">            max_seed_cluster_gap: Max query gap for clustering.</span>
+<span class="sd">            max_seeds_per_region: Max seeds to return per query region.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">AlignmentConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">canonical</span> <span class="o">=</span> <span class="n">canonical</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_seed_score</span> <span class="o">=</span> <span class="n">min_seed_score</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_seed_cluster_gap</span> <span class="o">=</span> <span class="n">max_seed_cluster_gap</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_seeds_per_region</span> <span class="o">=</span> <span class="n">max_seeds_per_region</span>
+
+        <span class="c1"># Cache for query k-mer lookups</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kmer_cache</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="SeedFinder.find_seeds">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedFinder.find_seeds">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_seeds</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">subject_ids</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_seeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Find seeds for a single query sequence.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            subject_ids: Optional list of subject IDs to search (all if None).</span>
+<span class="sd">            max_seeds: Maximum number of seeds to return.</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of Seed objects.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; seeds = finder.find_seeds(&quot;ATCGATCGATCG&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; for seed in seeds[:5]:</span>
+<span class="sd">            ...     print(seed)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract query ID and sequence</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">):</span>
+            <span class="n">query_id</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">id</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">sequence</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">query_id</span> <span class="o">=</span> <span class="s2">&quot;query&quot;</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="c1"># Extract k-mers from query</span>
+        <span class="n">query_kmers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">extract_kmers</span><span class="p">(</span>
+            <span class="n">query_seq</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">k</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">canonical</span>
+        <span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">query_kmers</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="c1"># Find seeds</span>
+        <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># subject_id, query_pos, subject_pos</span>
+        <span class="n">seen_positions</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c1"># Determine which subject IDs to search</span>
+        <span class="k">if</span> <span class="n">subject_ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">subject_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">subject_ids</span>
+
+        <span class="n">subject_id_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">subject_ids</span><span class="p">)</span>
+
+        <span class="c1"># Progress tracking</span>
+        <span class="n">total_kmers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_kmers</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">total_kmers</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Searching </span><span class="si">{</span><span class="n">total_kmers</span><span class="si">}</span><span class="s2"> k-mers in index...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">kmer</span><span class="p">,</span> <span class="n">q_pos</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">query_kmers</span><span class="p">):</span>
+            <span class="c1"># Look up k-mer in index</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span>
+                <span class="n">kmer</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># Already canonical</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Add seeds for each match</span>
+            <span class="k">for</span> <span class="n">subject_id</span><span class="p">,</span> <span class="n">s_pos</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">subject_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">subject_id_set</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># Avoid duplicate positions</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">q_pos</span><span class="p">,</span> <span class="n">s_pos</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">seen_positions</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">seen_positions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+                <span class="c1"># Determine strand (simplified: if using canonical, strand is ambiguous)</span>
+                <span class="c1"># For now, assume same strand</span>
+                <span class="n">strand</span> <span class="o">=</span> <span class="s2">&quot;+&quot;</span>
+
+                <span class="n">seed</span> <span class="o">=</span> <span class="n">Seed</span><span class="p">(</span>
+                    <span class="n">query_id</span><span class="o">=</span><span class="n">query_id</span><span class="p">,</span>
+                    <span class="n">subject_id</span><span class="o">=</span><span class="n">subject_id</span><span class="p">,</span>
+                    <span class="n">query_pos</span><span class="o">=</span><span class="n">q_pos</span><span class="p">,</span>
+                    <span class="n">subject_pos</span><span class="o">=</span><span class="n">s_pos</span><span class="p">,</span>
+                    <span class="n">kmer</span><span class="o">=</span><span class="n">kmer</span><span class="p">,</span>
+                    <span class="n">score</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># Each seed has weight 1</span>
+                    <span class="n">strand</span><span class="o">=</span><span class="n">strand</span>
+                <span class="p">)</span>
+                <span class="n">seeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+                <span class="c1"># Check max seeds</span>
+                <span class="k">if</span> <span class="n">max_seeds</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_seeds</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;  Reached max seeds (</span><span class="si">{</span><span class="n">max_seeds</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_seeds</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span>
+
+            <span class="c1"># Progress update</span>
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">total_kmers</span> <span class="o">&gt;</span> <span class="mi">1000</span> <span class="ow">and</span> <span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Processed </span><span class="si">{</span><span class="n">idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_kmers</span><span class="si">}</span><span class="s2"> k-mers, found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span><span class="si">}</span><span class="s2"> seeds&quot;</span><span class="p">,</span>
+                      <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">total_kmers</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Done: found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span><span class="si">}</span><span class="s2"> seeds&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_seeds</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SeedFinder.find_seeds_batch">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedFinder.find_seeds_batch">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_seeds_batch</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">queries</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
+            <span class="n">subject_ids</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_seeds_per_query</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Find seeds for multiple query sequences.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            queries: List of query sequences or SequenceRecords.</span>
+<span class="sd">            subject_ids: Optional list of subject IDs to search.</span>
+<span class="sd">            max_seeds_per_query: Maximum seeds per query.</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary mapping query ID to list of seeds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">total_queries</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing </span><span class="si">{</span><span class="n">total_queries</span><span class="si">}</span><span class="s2"> queries...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">query</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">queries</span><span class="p">):</span>
+            <span class="n">query_id</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">id</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">query</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">)</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;query_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">query_id</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_seeds</span><span class="p">(</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                <span class="n">subject_ids</span><span class="o">=</span><span class="n">subject_ids</span><span class="p">,</span>
+                <span class="n">max_seeds</span><span class="o">=</span><span class="n">max_seeds_per_query</span><span class="p">,</span>
+                <span class="n">progress</span><span class="o">=</span><span class="kc">False</span>  <span class="c1"># Don&#39;t show per-query progress in batch</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;  Processed </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_queries</span><span class="si">}</span><span class="s2"> queries&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_filter_seeds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter seeds based on quality thresholds.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seeds: List of seeds to filter.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Filtered list of seeds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">seeds</span>
+
+        <span class="c1"># Sort by score (higher is better)</span>
+        <span class="n">seeds</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Apply max seeds per region filter</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_seeds_per_region</span><span class="p">:</span>
+            <span class="c1"># Keep only top seeds per (query_id, subject_id)</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">seen_subjects</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span> <span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">seen_subjects</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_seeds_per_region</span><span class="p">:</span>
+                    <span class="n">filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+                    <span class="n">seen_subjects</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">return</span> <span class="n">filtered</span>
+
+        <span class="k">return</span> <span class="n">seeds</span>
+
+<div class="viewcode-block" id="SeedFinder.cluster_seeds">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedFinder.cluster_seeds">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cluster_seeds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">SeedCluster</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cluster seeds by subject and diagonal.</span>
+
+<span class="sd">        Seeds on the same diagonal within the same subject are clustered</span>
+<span class="sd">        together, which helps identify high-confidence regions.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seeds: List of seeds to cluster.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of SeedCluster objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="c1"># Group seeds by (subject_id, strand)</span>
+        <span class="n">groups</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="n">groups</span><span class="p">[(</span><span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">seed</span><span class="o">.</span><span class="n">strand</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="n">clusters</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">strand</span><span class="p">),</span> <span class="n">group_seeds</span> <span class="ow">in</span> <span class="n">groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Sort by query position</span>
+            <span class="n">group_seeds</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">query_pos</span><span class="p">)</span>
+
+            <span class="c1"># Cluster by diagonal offset</span>
+            <span class="n">current_cluster</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">group_seeds</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">current_cluster</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># Start new cluster</span>
+                    <span class="n">current_cluster</span> <span class="o">=</span> <span class="n">SeedCluster</span><span class="p">(</span>
+                        <span class="n">query_id</span><span class="o">=</span><span class="n">seed</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+                        <span class="n">subject_id</span><span class="o">=</span><span class="n">subject_id</span><span class="p">,</span>
+                        <span class="n">strand</span><span class="o">=</span><span class="n">strand</span>
+                    <span class="p">)</span>
+                    <span class="n">current_cluster</span><span class="o">.</span><span class="n">add_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+                    <span class="n">clusters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_cluster</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Check if seed belongs to current cluster</span>
+                    <span class="n">last_seed</span> <span class="o">=</span> <span class="n">current_cluster</span><span class="o">.</span><span class="n">seeds</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+                    <span class="c1"># Check if on same diagonal (allow small offset)</span>
+                    <span class="n">diag1</span> <span class="o">=</span> <span class="n">last_seed</span><span class="o">.</span><span class="n">subject_pos</span> <span class="o">-</span> <span class="n">last_seed</span><span class="o">.</span><span class="n">query_pos</span>
+                    <span class="n">diag2</span> <span class="o">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">subject_pos</span> <span class="o">-</span> <span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span>
+                    <span class="n">diag_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">diag1</span> <span class="o">-</span> <span class="n">diag2</span><span class="p">)</span>
+
+                    <span class="c1"># Check gap in query position</span>
+                    <span class="n">q_gap</span> <span class="o">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span> <span class="o">-</span> <span class="n">last_seed</span><span class="o">.</span><span class="n">query_pos</span>
+
+                    <span class="k">if</span> <span class="p">(</span><span class="n">diag_diff</span> <span class="o">&lt;=</span> <span class="mi">10</span> <span class="ow">and</span> <span class="n">q_gap</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_seed_cluster_gap</span><span class="p">):</span>
+                        <span class="c1"># Add to current cluster</span>
+                        <span class="n">current_cluster</span><span class="o">.</span><span class="n">add_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Start new cluster</span>
+                        <span class="n">current_cluster</span> <span class="o">=</span> <span class="n">SeedCluster</span><span class="p">(</span>
+                            <span class="n">query_id</span><span class="o">=</span><span class="n">seed</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+                            <span class="n">subject_id</span><span class="o">=</span><span class="n">subject_id</span><span class="p">,</span>
+                            <span class="n">strand</span><span class="o">=</span><span class="n">strand</span>
+                        <span class="p">)</span>
+                        <span class="n">current_cluster</span><span class="o">.</span><span class="n">add_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+                        <span class="n">clusters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_cluster</span><span class="p">)</span>
+
+        <span class="c1"># Sort clusters by size (largest first)</span>
+        <span class="n">clusters</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">clusters</span></div>
+
+
+<div class="viewcode-block" id="SeedFinder.find_best_seeds">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedFinder.find_best_seeds">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_best_seeds</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">top_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="n">subject_ids</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Find the best seeds for a query, prioritizing high-density regions.</span>
+
+<span class="sd">        This method finds seeds, clusters them, and returns the top seeds</span>
+<span class="sd">        from the best clusters.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            top_n: Number of top seeds to return.</span>
+<span class="sd">            subject_ids: Optional subject IDs to search.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of top seeds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Find all seeds</span>
+        <span class="n">seeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_seeds</span><span class="p">(</span>
+            <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+            <span class="n">subject_ids</span><span class="o">=</span><span class="n">subject_ids</span><span class="p">,</span>
+            <span class="n">max_seeds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_seeds_per_region</span> <span class="o">*</span> <span class="mi">10</span><span class="p">,</span>  <span class="c1"># Allow more for clustering</span>
+            <span class="n">progress</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="c1"># Cluster seeds</span>
+        <span class="n">clusters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster_seeds</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">clusters</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">seeds</span><span class="p">[:</span><span class="n">top_n</span><span class="p">]</span>
+
+        <span class="c1"># Select top seeds from top clusters</span>
+        <span class="n">selected_seeds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="n">clusters</span><span class="p">:</span>
+            <span class="c1"># Take up to 2 seeds per cluster</span>
+            <span class="n">cluster_seeds</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">seeds</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">selected_seeds</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cluster_seeds</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">selected_seeds</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">top_n</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="k">return</span> <span class="n">selected_seeds</span><span class="p">[:</span><span class="n">top_n</span><span class="p">]</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Seed Filtering Utilities</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="filter_seeds_by_density">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.filter_seeds_by_density">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">filter_seeds_by_density</span><span class="p">(</span>
+        <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">],</span>
+        <span class="n">min_density</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">window_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filter seeds to keep only those in high-density regions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        seeds: List of seeds.</span>
+<span class="sd">        min_density: Minimum density threshold (seeds per 100 bases).</span>
+<span class="sd">        window_size: Window size for density calculation.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Filtered list of seeds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">seeds</span>
+
+    <span class="c1"># Group by subject</span>
+    <span class="n">by_subject</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
+        <span class="n">by_subject</span><span class="p">[</span><span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="n">filtered</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">subject_id</span><span class="p">,</span> <span class="n">subject_seeds</span> <span class="ow">in</span> <span class="n">by_subject</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Sort by query position</span>
+        <span class="n">subject_seeds</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">query_pos</span><span class="p">)</span>
+
+        <span class="c1"># Calculate density in sliding window</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">subject_seeds</span><span class="p">):</span>
+            <span class="c1"># Count seeds within window_size</span>
+            <span class="n">window_start</span> <span class="o">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span> <span class="o">-</span> <span class="n">window_size</span> <span class="o">//</span> <span class="mi">2</span>
+            <span class="n">window_end</span> <span class="o">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span> <span class="o">+</span> <span class="n">window_size</span> <span class="o">//</span> <span class="mi">2</span>
+
+            <span class="n">count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+                <span class="mi">1</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subject_seeds</span>
+                <span class="k">if</span> <span class="n">window_start</span> <span class="o">&lt;=</span> <span class="n">s</span><span class="o">.</span><span class="n">query_pos</span> <span class="o">&lt;=</span> <span class="n">window_end</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Calculate density per 100 bases</span>
+            <span class="n">density</span> <span class="o">=</span> <span class="n">count</span> <span class="o">/</span> <span class="n">window_size</span> <span class="o">*</span> <span class="mi">100</span>
+
+            <span class="k">if</span> <span class="n">density</span> <span class="o">&gt;=</span> <span class="n">min_density</span><span class="p">:</span>
+                <span class="n">filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">filtered</span></div>
+
+
+
+<div class="viewcode-block" id="filter_seeds_by_coverage">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.filter_seeds_by_coverage">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">filter_seeds_by_coverage</span><span class="p">(</span>
+        <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">],</span>
+        <span class="n">max_coverage</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filter seeds to avoid over-sampling highly covered regions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        seeds: List of seeds.</span>
+<span class="sd">        max_coverage: Maximum number of seeds per query position.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Filtered list of seeds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">seeds</span>
+
+    <span class="c1"># Count seeds per query position</span>
+    <span class="n">position_counts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
+        <span class="n">position_counts</span><span class="p">[</span><span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># Keep only seeds from positions with count &lt;= max_coverage</span>
+    <span class="n">filtered</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">position_counts</span><span class="p">[</span><span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">max_coverage</span><span class="p">:</span>
+            <span class="n">filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="c1"># If filtering removed all seeds, return original (avoid empty results)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">filtered</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">seeds</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">]</span>  <span class="c1"># Keep half as fallback</span>
+
+    <span class="k">return</span> <span class="n">filtered</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Line Interface (for testing)</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.main">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple command line interface for testing the seeding module.&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Seed search tool&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;search&quot;</span><span class="p">,</span> <span class="s2">&quot;cluster&quot;</span><span class="p">],</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Action to perform&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--database&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Database FASTA file or index file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-q&quot;</span><span class="p">,</span> <span class="s2">&quot;--query&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Query FASTA file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--kmer&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;k-mer size&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--top&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of top seeds to show&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="c1"># Load or build index</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.index</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_index_from_fasta</span><span class="p">,</span> <span class="n">load_index_from_file</span>
+
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">)</span> <span class="ow">and</span> <span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.json&#39;</span><span class="p">):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">load_index_from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">build_index_from_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">kmer</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error loading index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Load query</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_fasta</span>
+    <span class="n">queries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">queries</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No queries found&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Create seed finder</span>
+    <span class="n">finder</span> <span class="o">=</span> <span class="n">SeedFinder</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;search&quot;</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Searching seeds for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2"> queries...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+            <span class="n">seeds</span> <span class="o">=</span> <span class="n">finder</span><span class="o">.</span><span class="n">find_best_seeds</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Query: </span><span class="si">{</span><span class="n">query</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> - Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span><span class="si">}</span><span class="s2"> seeds&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">seeds</span><span class="p">[:</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">]):</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2"> at q=</span><span class="si">{</span><span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span><span class="si">}</span><span class="s2">, s=</span><span class="si">{</span><span class="n">seed</span><span class="o">.</span><span class="n">subject_pos</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;cluster&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+            <span class="n">seeds</span> <span class="o">=</span> <span class="n">finder</span><span class="o">.</span><span class="n">find_seeds</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">max_seeds</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+            <span class="n">clusters</span> <span class="o">=</span> <span class="n">finder</span><span class="o">.</span><span class="n">cluster_seeds</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Query: </span><span class="si">{</span><span class="n">query</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total seeds: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total clusters: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">clusters</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">clusters</span><span class="p">[:</span><span class="mi">5</span><span class="p">]):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Cluster </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span><span class="si">}</span><span class="s2"> seeds, &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;q=</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">query_range</span><span class="si">}</span><span class="s2">, s=</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">subject_range</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

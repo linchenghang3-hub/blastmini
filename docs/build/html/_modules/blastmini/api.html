@@ -1,0 +1,1017 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.api &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.api</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.api 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;High-level API for blastmini.</span>
+
+<span class="sd">This module provides a clean, user-friendly interface for all blastmini</span>
+<span class="sd">functionality. It is designed for use in Python scripts, Jupyter notebooks,</span>
+<span class="sd">and interactive sessions.</span>
+
+<span class="sd">Key features:</span>
+<span class="sd">    - Simple one-line search interface</span>
+<span class="sd">    - Context managers for resource management</span>
+<span class="sd">    - Batch processing support</span>
+<span class="sd">    - Progress callbacks</span>
+<span class="sd">    - Result caching</span>
+<span class="sd">    - Easy access to all blastmini features</span>
+
+<span class="sd">Examples:</span>
+<span class="sd">    &gt;&gt;&gt; from blastmini.api import BlastMini</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; # Initialize with database</span>
+<span class="sd">    &gt;&gt;&gt; blast = BlastMini.from_fasta(&quot;database.fa&quot;, k=11)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; # Search a query</span>
+<span class="sd">    &gt;&gt;&gt; results = blast.search(&quot;ATCGATCGATCG&quot;, top_n=10)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; # Get top hit</span>
+<span class="sd">    &gt;&gt;&gt; top = results[0]</span>
+<span class="sd">    &gt;&gt;&gt; print(f&quot;Best hit: {top.subject_id}, score={top.raw_score}&quot;)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.extension</span><span class="w"> </span><span class="kn">import</span> <span class="n">SeedExtender</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.index</span><span class="w"> </span><span class="kn">import</span> <span class="n">KmerIndex</span><span class="p">,</span> <span class="n">load_index_from_file</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_fasta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlignmentConfig</span><span class="p">,</span> <span class="n">SequenceRecord</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.scoring</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">HitScorer</span><span class="p">,</span> <span class="n">ScoredHit</span><span class="p">,</span> <span class="n">format_hits_as_text</span><span class="p">,</span>
+                      <span class="n">format_hits_as_tsv</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">SeedFinder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">SignificanceEstimator</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Progress Callback Types</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">ProgressCallback</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="default_progress_callback">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.default_progress_callback">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">default_progress_callback</span><span class="p">(</span><span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">current</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">total</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default progress callback that prints to stderr.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">current</span> <span class="o">/</span> <span class="n">total</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\r</span><span class="si">{</span><span class="n">stage</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">percent</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">% (</span><span class="si">{</span><span class="n">current</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">current</span> <span class="o">&gt;=</span> <span class="n">total</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Search Result Container</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="SearchResult">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SearchResult">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SearchResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Container for search results.</span>
+
+<span class="sd">    This class provides easy access to search results and associated</span>
+<span class="sd">    metadata.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        query_id: Query sequence identifier.</span>
+<span class="sd">        query_sequence: Query sequence string.</span>
+<span class="sd">        hits: List of scored hits.</span>
+<span class="sd">        num_seeds_found: Number of seeds found.</span>
+<span class="sd">        num_extensions: Number of extensions performed.</span>
+<span class="sd">        search_time: Search time in seconds.</span>
+<span class="sd">        parameters: Search parameters used.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">query_sequence</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">]</span>
+    <span class="n">num_seeds_found</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">num_extensions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">search_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">top_hit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the top-scoring hit.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hits</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">num_hits</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the number of hits.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hits</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_significant_hits</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if there are any significant hits.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">is_significant</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hits</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="s1">&#39;is_significant&#39;</span><span class="p">))</span>
+
+<div class="viewcode-block" id="SearchResult.to_dict">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SearchResult.to_dict">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to dictionary.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;query_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="s1">&#39;query_sequence&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_sequence</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;...&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">query_sequence</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_sequence</span><span class="p">,</span>
+            <span class="s1">&#39;num_hits&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_hits</span><span class="p">,</span>
+            <span class="s1">&#39;num_seeds_found&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_seeds_found</span><span class="p">,</span>
+            <span class="s1">&#39;num_extensions&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_extensions</span><span class="p">,</span>
+            <span class="s1">&#39;search_time&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">search_time</span><span class="p">,</span>
+            <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span>
+            <span class="s1">&#39;hits&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">h</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hits</span><span class="p">]</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SearchResult.to_text">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SearchResult.to_text">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_text</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Format as human-readable text.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">format_hits_as_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hits</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SearchResult.to_tsv">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SearchResult.to_tsv">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_tsv</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Format as TSV.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">format_hits_as_tsv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hits</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SearchResult.to_json">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SearchResult.to_json">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Format as JSON.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SearchResult.save">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SearchResult.save">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tsv&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save results to file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filepath: Output file path.</span>
+<span class="sd">            format: Output format (&#39;tsv&#39;, &#39;text&#39;, &#39;json&#39;).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;tsv&#39;</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_tsv</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_text</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SearchResult(query=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="si">}</span><span class="s2">&#39;, hits=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_hits</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Batch Search Result</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="BatchSearchResult">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BatchSearchResult">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BatchSearchResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Container for batch search results.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        results: List of SearchResult objects.</span>
+<span class="sd">        total_hits: Total number of hits across all queries.</span>
+<span class="sd">        total_time: Total search time in seconds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SearchResult</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">total_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">total_hits</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get total number of hits.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">num_hits</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">total_queries</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get total number of queries.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchSearchResult.get_best_hits">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BatchSearchResult.get_best_hits">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_best_hits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the best hits across all queries.&quot;&quot;&quot;</span>
+        <span class="n">all_hits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+            <span class="n">all_hits</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">hits</span><span class="p">)</span>
+        <span class="n">all_hits</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">h</span><span class="p">:</span> <span class="n">h</span><span class="o">.</span><span class="n">raw_score</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">all_hits</span><span class="p">[:</span><span class="n">top_n</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="BatchSearchResult.to_dict">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BatchSearchResult.to_dict">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to dictionary.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;total_queries&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_queries</span><span class="p">,</span>
+            <span class="s1">&#39;total_hits&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_hits</span><span class="p">,</span>
+            <span class="s1">&#39;total_time&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_time</span><span class="p">,</span>
+            <span class="s1">&#39;results&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">]</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="BatchSearchResult.to_json">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BatchSearchResult.to_json">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Format as JSON.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchSearchResult.save">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BatchSearchResult.save">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tsv&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save all results to a single file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filepath: Output file path.</span>
+<span class="sd">            format: Output format (&#39;tsv&#39;, &#39;json&#39;).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;tsv&#39;</span><span class="p">:</span>
+            <span class="c1"># Combine all TSV lines</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+                <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">to_tsv</span><span class="p">())</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;BatchSearchResult(queries=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">total_queries</span><span class="si">}</span><span class="s2">, hits=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">total_hits</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Main API Class</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="BlastMini">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini">[文档]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BlastMini</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Main API class for blastmini.</span>
+
+<span class="sd">    This class provides a high-level interface for all blastmini</span>
+<span class="sd">    functionality. It manages the database index, configuration,</span>
+<span class="sd">    and provides convenient methods for searching.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        config: Alignment configuration.</span>
+<span class="sd">        index: K-mer index for the database.</span>
+<span class="sd">        subject_sequences: Dictionary of subject sequences.</span>
+<span class="sd">        verbose: Whether to print progress messages.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; # Load from FASTA</span>
+<span class="sd">        &gt;&gt;&gt; blast = BlastMini.from_fasta(&quot;database.fa&quot;, k=11)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Search a single query</span>
+<span class="sd">        &gt;&gt;&gt; results = blast.search(&quot;ATCGATCGATCG&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(results.top_hit)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Search multiple queries from a file</span>
+<span class="sd">        &gt;&gt;&gt; results = blast.search_fasta(&quot;queries.fa&quot;)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Configure search parameters</span>
+<span class="sd">        &gt;&gt;&gt; blast = BlastMini.from_fasta(&quot;database.fa&quot;, config=AlignmentConfig(</span>
+<span class="sd">        ...     match_score=2, mismatch_penalty=-3, x_dropoff=10</span>
+<span class="sd">        ... ))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">index</span><span class="p">:</span> <span class="n">KmerIndex</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlignmentConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize BlastMini with an index.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index: K-mer index for the database.</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+<span class="sd">            config: Alignment configuration.</span>
+<span class="sd">            verbose: Whether to print progress messages.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject_sequences</span> <span class="o">=</span> <span class="n">subject_sequences</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">AlignmentConfig</span><span class="p">(</span><span class="n">kmer_size</span><span class="o">=</span><span class="n">index</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+
+        <span class="c1"># Initialize components</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_finder</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SeedFinder</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_extender</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SeedExtender</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">HitScorer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_estimator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SignificanceEstimator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_components</span><span class="p">()</span>
+
+<div class="viewcode-block" id="BlastMini.from_fasta">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.from_fasta">[文档]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_fasta</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="p">,</span>
+            <span class="n">fasta_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+            <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
+            <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlignmentConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">min_occurrences</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">max_occurrences</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_records</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BlastMini&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create BlastMini from a FASTA file.</span>
+
+<span class="sd">        This is the recommended way to initialize BlastMini.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fasta_file: Path to FASTA file.</span>
+<span class="sd">            k: k-mer size.</span>
+<span class="sd">            config: Alignment configuration.</span>
+<span class="sd">            canonical: Use canonical k-mers.</span>
+<span class="sd">            min_occurrences: Minimum occurrences for k-mers.</span>
+<span class="sd">            max_occurrences: Maximum occurrences for k-mers.</span>
+<span class="sd">            max_records: Maximum records to index.</span>
+<span class="sd">            verbose: Whether to print progress messages.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BlastMini instance.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; blast = BlastMini.from_fasta(&quot;database.fa&quot;, k=11)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Build index</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building index from </span><span class="si">{</span><span class="n">fasta_file</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">fasta_file</span><span class="p">):</span>
+            <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">max_records</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_records</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">records</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No sequences found in </span><span class="si">{</span><span class="n">fasta_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">index</span> <span class="o">=</span> <span class="n">KmerIndex</span><span class="o">.</span><span class="n">build</span><span class="p">(</span>
+            <span class="n">records</span><span class="o">=</span><span class="n">records</span><span class="p">,</span>
+            <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="o">=</span><span class="n">canonical</span><span class="p">,</span>
+            <span class="n">min_kmer_occurrences</span><span class="o">=</span><span class="n">min_occurrences</span><span class="p">,</span>
+            <span class="n">max_kmer_occurrences</span><span class="o">=</span><span class="n">max_occurrences</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="n">verbose</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Build subject sequences dict</span>
+        <span class="n">subject_sequences</span> <span class="o">=</span> <span class="p">{</span><span class="n">rec</span><span class="o">.</span><span class="n">id</span><span class="p">:</span> <span class="n">rec</span><span class="o">.</span><span class="n">sequence</span> <span class="k">for</span> <span class="n">rec</span> <span class="ow">in</span> <span class="n">records</span><span class="p">}</span>
+
+        <span class="c1"># Create config</span>
+        <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">AlignmentConfig</span><span class="p">(</span><span class="n">kmer_size</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">index</span><span class="o">=</span><span class="n">index</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="o">=</span><span class="n">subject_sequences</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BlastMini.from_index">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.from_index">[文档]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_index</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="p">,</span>
+            <span class="n">index_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+            <span class="n">fasta_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlignmentConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BlastMini&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create BlastMini from a saved index file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index_file: Path to index JSON file.</span>
+<span class="sd">            fasta_file: Path to FASTA file (for subject sequences).</span>
+<span class="sd">            config: Alignment configuration.</span>
+<span class="sd">            verbose: Whether to print progress messages.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BlastMini instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading index from </span><span class="si">{</span><span class="n">index_file</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="n">index</span> <span class="o">=</span> <span class="n">load_index_from_file</span><span class="p">(</span><span class="n">index_file</span><span class="p">)</span>
+
+        <span class="c1"># Load subject sequences if provided</span>
+        <span class="n">subject_sequences</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">fasta_file</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">fasta_file</span><span class="p">):</span>
+                <span class="n">subject_sequences</span><span class="p">[</span><span class="n">record</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">sequence</span>
+
+        <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">AlignmentConfig</span><span class="p">(</span><span class="n">kmer_size</span><span class="o">=</span><span class="n">index</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">index</span><span class="o">=</span><span class="n">index</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="o">=</span><span class="n">subject_sequences</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_init_components</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize internal components.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_finder</span> <span class="o">=</span> <span class="n">SeedFinder</span><span class="p">(</span>
+            <span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_extender</span> <span class="o">=</span> <span class="n">SeedExtender</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span>
+            <span class="n">track_stats</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span> <span class="o">=</span> <span class="n">HitScorer</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span>
+            <span class="n">min_score</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">min_identity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">top_n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">top_n</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_progress_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ProgressCallback</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get progress callback based on verbose setting.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">default_progress_callback</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="BlastMini.search">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.search">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">],</span>
+            <span class="n">top_n</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">min_score</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">min_identity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_seeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_extensions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">estimate_significance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">significance_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SearchResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search a single query sequence.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            top_n: Number of top hits to return.</span>
+<span class="sd">            min_score: Minimum score threshold.</span>
+<span class="sd">            min_identity: Minimum identity percentage.</span>
+<span class="sd">            max_seeds: Maximum seeds to consider.</span>
+<span class="sd">            max_extensions: Maximum extensions to perform.</span>
+<span class="sd">            estimate_significance: Whether to estimate statistical significance.</span>
+<span class="sd">            significance_params: Parameters for significance estimation.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            SearchResult object.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; result = blast.search(&quot;ATCGATCGATCG&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; print(result.top_hit)</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # With custom parameters</span>
+<span class="sd">            &gt;&gt;&gt; result = blast.search(&quot;ATCGATCGATCG&quot;, top_n=5, min_score=50)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="c1"># Parse query</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">):</span>
+            <span class="n">query_id</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">id</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">sequence</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">query_id</span> <span class="o">=</span> <span class="s2">&quot;query&quot;</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="c1"># Set parameters</span>
+        <span class="n">top_n</span> <span class="o">=</span> <span class="n">top_n</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">top_n</span>
+        <span class="n">min_score</span> <span class="o">=</span> <span class="n">min_score</span> <span class="ow">or</span> <span class="mi">0</span>
+        <span class="n">min_identity</span> <span class="o">=</span> <span class="n">min_identity</span> <span class="ow">or</span> <span class="mf">0.0</span>
+        <span class="n">max_seeds</span> <span class="o">=</span> <span class="n">max_seeds</span> <span class="ow">or</span> <span class="mi">100</span>
+        <span class="n">max_extensions</span> <span class="o">=</span> <span class="n">max_extensions</span> <span class="ow">or</span> <span class="mi">100</span>
+
+        <span class="c1"># Update components for this search</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span><span class="o">.</span><span class="n">top_n</span> <span class="o">=</span> <span class="n">top_n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span><span class="o">.</span><span class="n">min_score</span> <span class="o">=</span> <span class="n">min_score</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span><span class="o">.</span><span class="n">min_identity</span> <span class="o">=</span> <span class="n">min_identity</span>
+
+        <span class="c1"># Find seeds</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Searching query: </span><span class="si">{</span><span class="n">query_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="n">seeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finder</span><span class="o">.</span><span class="n">find_best_seeds</span><span class="p">(</span>
+            <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+            <span class="n">top_n</span><span class="o">=</span><span class="n">max_seeds</span><span class="p">,</span>
+            <span class="n">subject_ids</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_sequences</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">SearchResult</span><span class="p">(</span>
+                <span class="n">query_id</span><span class="o">=</span><span class="n">query_id</span><span class="p">,</span>
+                <span class="n">query_sequence</span><span class="o">=</span><span class="n">query_seq</span><span class="p">,</span>
+                <span class="n">hits</span><span class="o">=</span><span class="p">[],</span>
+                <span class="n">num_seeds_found</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">search_time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">,</span>
+                <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;top_n&#39;</span><span class="p">:</span> <span class="n">top_n</span><span class="p">,</span> <span class="s1">&#39;min_score&#39;</span><span class="p">:</span> <span class="n">min_score</span><span class="p">}</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Extend seeds</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extender</span><span class="o">.</span><span class="n">extend_seeds</span><span class="p">(</span>
+            <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+            <span class="n">seeds</span><span class="o">=</span><span class="n">seeds</span><span class="p">[:</span><span class="n">max_extensions</span><span class="p">],</span>
+            <span class="n">subject_sequences</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_sequences</span><span class="p">,</span>
+            <span class="n">max_results</span><span class="o">=</span><span class="n">top_n</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Score hits</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">to_hit</span><span class="p">()</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+        <span class="n">scored_hits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span><span class="o">.</span><span class="n">score_hits</span><span class="p">(</span>
+            <span class="n">hits</span><span class="o">=</span><span class="n">hits</span><span class="p">,</span>
+            <span class="n">query_length</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">query_seq</span><span class="p">),</span>
+            <span class="n">db_total_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Estimate significance if requested</span>
+        <span class="k">if</span> <span class="n">estimate_significance</span> <span class="ow">and</span> <span class="n">scored_hits</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">significance_params</span> <span class="ow">or</span> <span class="p">{}</span>
+            <span class="n">estimator</span> <span class="o">=</span> <span class="n">SignificanceEstimator</span><span class="p">(</span>
+                <span class="n">n_permutations</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;n_permutations&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+                <span class="n">random_seed</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;random_seed&#39;</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Use existing background distribution if available</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_background_distribution&#39;</span><span class="p">):</span>
+                <span class="n">estimator</span><span class="o">.</span><span class="n">background_distribution</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_background_distribution</span>
+
+            <span class="c1"># Estimate significance</span>
+            <span class="n">sign_results</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">estimate_significance_batch</span><span class="p">(</span>
+                <span class="n">hits</span><span class="o">=</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">hit</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">],</span>
+                <span class="n">query_length</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">query_seq</span><span class="p">),</span>
+                <span class="n">db_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="p">,</span>
+                <span class="n">use_extreme_distribution</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;use_extreme&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                <span class="n">progress</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Merge significance into scored hits</span>
+            <span class="k">for</span> <span class="n">scored</span><span class="p">,</span> <span class="n">sign</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">,</span> <span class="n">sign_results</span><span class="p">):</span>
+                <span class="n">scored</span><span class="o">.</span><span class="n">evalue</span> <span class="o">=</span> <span class="n">sign</span><span class="o">.</span><span class="n">evalue</span>
+                <span class="c1"># Add significance attributes</span>
+                <span class="n">scored</span><span class="o">.</span><span class="n">is_significant</span> <span class="o">=</span> <span class="n">sign</span><span class="o">.</span><span class="n">is_significant</span>
+                <span class="n">scored</span><span class="o">.</span><span class="n">pvalue</span> <span class="o">=</span> <span class="n">sign</span><span class="o">.</span><span class="n">pvalue</span>
+
+        <span class="c1"># Create result</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">SearchResult</span><span class="p">(</span>
+            <span class="n">query_id</span><span class="o">=</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="n">query_sequence</span><span class="o">=</span><span class="n">query_seq</span><span class="p">,</span>
+            <span class="n">hits</span><span class="o">=</span><span class="n">scored_hits</span><span class="p">,</span>
+            <span class="n">num_seeds_found</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">),</span>
+            <span class="n">num_extensions</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">),</span>
+            <span class="n">search_time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;top_n&#39;</span><span class="p">:</span> <span class="n">top_n</span><span class="p">,</span>
+                <span class="s1">&#39;min_score&#39;</span><span class="p">:</span> <span class="n">min_score</span><span class="p">,</span>
+                <span class="s1">&#39;min_identity&#39;</span><span class="p">:</span> <span class="n">min_identity</span><span class="p">,</span>
+                <span class="s1">&#39;max_seeds&#39;</span><span class="p">:</span> <span class="n">max_seeds</span><span class="p">,</span>
+                <span class="s1">&#39;max_extensions&#39;</span><span class="p">:</span> <span class="n">max_extensions</span><span class="p">,</span>
+                <span class="s1">&#39;estimate_significance&#39;</span><span class="p">:</span> <span class="n">estimate_significance</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="BlastMini.search_fasta">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.search_fasta">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">search_fasta</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">fasta_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+            <span class="n">top_n</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">min_score</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">min_identity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_queries</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">estimate_significance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">significance_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchSearchResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search multiple queries from a FASTA file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fasta_file: Path to FASTA file with queries.</span>
+<span class="sd">            top_n: Number of top hits per query.</span>
+<span class="sd">            min_score: Minimum score threshold.</span>
+<span class="sd">            min_identity: Minimum identity percentage.</span>
+<span class="sd">            max_queries: Maximum number of queries to process.</span>
+<span class="sd">            estimate_significance: Whether to estimate significance.</span>
+<span class="sd">            significance_params: Parameters for significance estimation.</span>
+<span class="sd">            progress: Whether to show progress.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BatchSearchResult object.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; results = blast.search_fasta(&quot;queries.fa&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; for result in results.results:</span>
+<span class="sd">            ...     print(f&quot;{result.query_id}: {result.num_hits} hits&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="c1"># Load queries</span>
+        <span class="n">queries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">fasta_file</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">max_queries</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_queries</span><span class="p">:</span>
+            <span class="n">queries</span> <span class="o">=</span> <span class="n">queries</span><span class="p">[:</span><span class="n">max_queries</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">queries</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No queries found in </span><span class="si">{</span><span class="n">fasta_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2"> queries...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">query</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">queries</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">query</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                <span class="n">top_n</span><span class="o">=</span><span class="n">top_n</span><span class="p">,</span>
+                <span class="n">min_score</span><span class="o">=</span><span class="n">min_score</span><span class="p">,</span>
+                <span class="n">min_identity</span><span class="o">=</span><span class="n">min_identity</span><span class="p">,</span>
+                <span class="n">estimate_significance</span><span class="o">=</span><span class="n">estimate_significance</span><span class="p">,</span>
+                <span class="n">significance_params</span><span class="o">=</span><span class="n">significance_params</span>
+            <span class="p">)</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">BatchSearchResult</span><span class="p">(</span>
+            <span class="n">results</span><span class="o">=</span><span class="n">results</span><span class="p">,</span>
+            <span class="n">total_time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BlastMini.estimate_background">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.estimate_background">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_background</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">],</span>
+            <span class="n">n_permutations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+            <span class="n">random_seed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BlastMini&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate background distribution for significance testing.</span>
+
+<span class="sd">        This caches the background distribution for use in future searches.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            n_permutations: Number of permutations.</span>
+<span class="sd">            random_seed: Random seed for reproducibility.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self (for chaining).</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; blast.estimate_background(&quot;ATCGATCGATCG&quot;, n_permutations=200)</span>
+<span class="sd">            &gt;&gt;&gt; results = blast.search(&quot;ATCGATCGATCG&quot;, estimate_significance=True)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">SignificanceEstimator</span><span class="p">(</span>
+            <span class="n">n_permutations</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span>
+            <span class="n">random_seed</span><span class="o">=</span><span class="n">random_seed</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_background_distribution</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">estimate_background_distribution</span><span class="p">(</span>
+            <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_sequences</span><span class="p">,</span>
+            <span class="n">n_permutations</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="BlastMini.get_stats">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.get_stats">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get statistics about the database and index.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of statistics.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">stats</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;kmer_size&#39;</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">kmer_size</span><span class="p">,</span>
+            <span class="s1">&#39;total_sequences&#39;</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">total_sequences</span><span class="p">,</span>
+            <span class="s1">&#39;total_length&#39;</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="p">,</span>
+            <span class="s1">&#39;unique_kmers&#39;</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">unique_kmers</span><span class="p">,</span>
+            <span class="s1">&#39;total_kmers&#39;</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">total_kmers</span><span class="p">,</span>
+            <span class="s1">&#39;memory_estimate_mb&#39;</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">memory_estimate_mb</span><span class="p">,</span>
+            <span class="s1">&#39;subject_sequences_loaded&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_sequences</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="BlastMini.save_index">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.save_index">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save the index to a file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filepath: Output file path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index saved to </span><span class="si">{</span><span class="n">filepath</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BlastMini.set_verbose">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.set_verbose">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_verbose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BlastMini&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set verbose mode.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            verbose: Whether to print progress messages.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self (for chaining).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="BlastMini.set_config">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.BlastMini.set_config">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">AlignmentConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BlastMini&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update configuration.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: New configuration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self (for chaining).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_components</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;BlastMini(k=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">k</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;sequences=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_sequences</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;kmers=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">unique_kmers</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Convenience Functions</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="quick_search">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.quick_search">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">quick_search</span><span class="p">(</span>
+        <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">],</span>
+        <span class="n">database</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
+        <span class="n">top_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SearchResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Quick one-line search.</span>
+
+<span class="sd">    This is a convenience function for simple searches without creating</span>
+<span class="sd">    a BlastMini instance.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        query: Query sequence or SequenceRecord.</span>
+<span class="sd">        database: Database FASTA file.</span>
+<span class="sd">        k: k-mer size.</span>
+<span class="sd">        top_n: Number of top hits.</span>
+<span class="sd">        **kwargs: Additional arguments passed to BlastMini.search.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        SearchResult object.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; result = quick_search(&quot;ATCGATCGATCG&quot;, &quot;database.fa&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(result.top_hit)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">blast</span> <span class="o">=</span> <span class="n">BlastMini</span><span class="o">.</span><span class="n">from_fasta</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">blast</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">top_n</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="quick_batch_search">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.quick_batch_search">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">quick_batch_search</span><span class="p">(</span>
+        <span class="n">queries_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">database</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
+        <span class="n">top_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchSearchResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Quick one-line batch search.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        queries_file: FASTA file with queries.</span>
+<span class="sd">        database: Database FASTA file.</span>
+<span class="sd">        k: k-mer size.</span>
+<span class="sd">        top_n: Number of top hits per query.</span>
+<span class="sd">        **kwargs: Additional arguments passed to BlastMini.search_fasta.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        BatchSearchResult object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">blast</span> <span class="o">=</span> <span class="n">BlastMini</span><span class="o">.</span><span class="n">from_fasta</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">blast</span><span class="o">.</span><span class="n">search_fasta</span><span class="p">(</span><span class="n">queries_file</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">top_n</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Module Exports</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;BlastMini&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;SearchResult&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BatchSearchResult&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;quick_search&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;quick_batch_search&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ProgressCallback&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;default_progress_callback&#39;</span>
+<span class="p">]</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Line Interface for API Testing</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple CLI for testing the API.&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;blastmini API test&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--database&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Database FASTA file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-q&quot;</span><span class="p">,</span> <span class="s2">&quot;--query&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Query FASTA file or sequence string&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--kmer&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;k-mer size&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--top&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of top hits&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="c1"># Create BlastMini instance</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading database from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">blast</span> <span class="o">=</span> <span class="n">BlastMini</span><span class="o">.</span><span class="n">from_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">kmer</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database stats: </span><span class="si">{</span><span class="n">blast</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="c1"># Load or parse query</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">queries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">queries</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">queries</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">query</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">query</span>
+
+    <span class="c1"># Search</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Searching query...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">blast</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Found </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">num_hits</span><span class="si">}</span><span class="s2"> hits in </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">search_time</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Top hits:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">to_text</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Results saved to </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

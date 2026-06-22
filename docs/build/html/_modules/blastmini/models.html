@@ -1,0 +1,320 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.models &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.models</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.models 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Data models for blastmini.</span>
+
+<span class="sd">This module defines the core data structures used throughout the blastmini</span>
+<span class="sd">package, including sequence records, alignment hits, and configuration</span>
+<span class="sd">parameters.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+
+<div class="viewcode-block" id="SequenceRecord">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SequenceRecord">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SequenceRecord</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A biological sequence record with identifier and sequence data.</span>
+
+<span class="sd">    This class represents a single sequence entry from a FASTA file or</span>
+<span class="sd">    other sequence data source. It is designed to be immutable and</span>
+<span class="sd">    hashable for use in indices and caches.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        id: Unique sequence identifier (without the &#39;&gt;&#39; character).</span>
+<span class="sd">        sequence: The biological sequence string (DNA/RNA/protein).</span>
+<span class="sd">        description: Optional description line from the FASTA header.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; record = SequenceRecord(&quot;NC_000001&quot;, &quot;ATCGATCGATCG&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(record.id)</span>
+<span class="sd">        NC_000001</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">sequence</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize sequence to uppercase and strip whitespace.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the length of the sequence.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compact string representation.&quot;&quot;&quot;</span>
+        <span class="n">seq_preview</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="p">[:</span><span class="mi">30</span><span class="p">]</span> <span class="o">+</span> \
+            <span class="s2">&quot;...&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">30</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SequenceRecord(id=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&#39;, length=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">, sequence=&#39;</span><span class="si">{</span><span class="n">seq_preview</span><span class="si">}</span><span class="s2">&#39;)&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="Hit">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.Hit">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Hit</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A single alignment hit between a query and a subject sequence.</span>
+
+<span class="sd">    This class stores all information about a seed-and-extend alignment</span>
+<span class="sd">    result, including coordinates, scores, and alignment details.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        query_id: Identifier of the query sequence.</span>
+<span class="sd">        subject_id: Identifier of the subject (database) sequence.</span>
+<span class="sd">        score: Raw alignment score from the extension process.</span>
+<span class="sd">        identity_percent: Percentage of identical residues in the alignment.</span>
+<span class="sd">        alignment_length: Total length of the alignment region.</span>
+<span class="sd">        query_start: Start position in the query sequence (0-based).</span>
+<span class="sd">        query_end: End position in the query sequence (0-based, exclusive).</span>
+<span class="sd">        subject_start: Start position in the subject sequence (0-based).</span>
+<span class="sd">        subject_end: End position in the subject sequence (0-based, exclusive).</span>
+<span class="sd">        query_alignment: The query sequence segment with gaps (if any).</span>
+<span class="sd">        subject_alignment: The subject sequence segment with gaps (if any).</span>
+<span class="sd">        evalue: Estimated E-value for this hit (if computed).</span>
+<span class="sd">        bit_score: Bit score for this hit (if computed).</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; hit = Hit(query_id=&quot;Q1&quot;, subject_id=&quot;S1&quot;, score=45, identity_percent=95.0)</span>
+<span class="sd">        &gt;&gt;&gt; print(hit)</span>
+<span class="sd">        Hit(query=&#39;Q1&#39;, subject=&#39;S1&#39;, score=45, identity=95.0%)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">query_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">subject_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">identity_percent</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">alignment_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">query_start</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">query_end</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">subject_start</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">subject_end</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">query_alignment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">subject_alignment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">evalue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">bit_score</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate that coordinates are consistent.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_start</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_end</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_end</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_start</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;query_end (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_end</span><span class="si">}</span><span class="s2">) must be &gt; query_start (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_start</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_start</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_end</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_end</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_start</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;subject_end (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_end</span><span class="si">}</span><span class="s2">) must be &gt; subject_start (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_start</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compact string representation.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hit(query=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="si">}</span><span class="s2">&#39;, subject=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;score=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="si">}</span><span class="s2">, identity=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">identity_percent</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%)&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Hit.to_tsv">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.Hit.to_tsv">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_tsv</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert hit to tab-separated values for output.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A tab-separated string suitable for TSV output files.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; hit = Hit(query_id=&quot;Q1&quot;, subject_id=&quot;S1&quot;, score=100)</span>
+<span class="sd">            &gt;&gt;&gt; print(hit.to_tsv())</span>
+<span class="sd">            Q1\tS1\t100\t...</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">identity_percent</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query_start</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query_end</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_start</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_end</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">evalue</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">evalue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bit_score</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bit_score</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="Hit.tsv_header">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.Hit.tsv_header">[文档]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">tsv_header</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the TSV header line for hit output.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A tab-separated header string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="s2">&quot;query_id&quot;</span><span class="p">,</span> <span class="s2">&quot;subject_id&quot;</span><span class="p">,</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span> <span class="s2">&quot;identity_percent&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;alignment_length&quot;</span><span class="p">,</span> <span class="s2">&quot;query_start&quot;</span><span class="p">,</span> <span class="s2">&quot;query_end&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;subject_start&quot;</span><span class="p">,</span> <span class="s2">&quot;subject_end&quot;</span><span class="p">,</span> <span class="s2">&quot;evalue&quot;</span><span class="p">,</span> <span class="s2">&quot;bit_score&quot;</span>
+        <span class="p">])</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AlignmentConfig">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.AlignmentConfig">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AlignmentConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration parameters for alignment algorithms.</span>
+
+<span class="sd">    This class centralizes all scoring and alignment parameters to avoid</span>
+<span class="sd">    passing many individual arguments to functions.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        kmer_size: Size of k-mers used for seeding (default: 11).</span>
+<span class="sd">        match_score: Score for matching nucleotides (default: 5).</span>
+<span class="sd">        mismatch_penalty: Score for mismatching nucleotides (negative, default: -4).</span>
+<span class="sd">        gap_open_penalty: Penalty for opening a gap (negative, default: -5).</span>
+<span class="sd">        gap_extend_penalty: Penalty for extending a gap (negative, default: -2).</span>
+<span class="sd">        x_dropoff: X-dropoff threshold for extension termination (default: 5).</span>
+<span class="sd">        top_n: Number of top hits to report (default: 10).</span>
+<span class="sd">        min_score: Minimum score to report a hit (default: 0).</span>
+<span class="sd">        min_identity: Minimum identity percentage to report (default: 0.0).</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; config = AlignmentConfig(kmer_size=15, match_score=1, mismatch_penalty=-1)</span>
+<span class="sd">        &gt;&gt;&gt; print(config.kmer_size)</span>
+<span class="sd">        15</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">kmer_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span>
+    <span class="n">match_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">mismatch_penalty</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">4</span>
+    <span class="n">gap_open_penalty</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">5</span>
+    <span class="n">gap_extend_penalty</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+    <span class="n">x_dropoff</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">top_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">min_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">min_identity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate configuration parameters.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kmer_size</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;kmer_size must be &gt;= 1, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">kmer_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_score</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;match_score must be positive, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">match_score</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mismatch_penalty</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;mismatch_penalty must be &lt;= 0, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mismatch_penalty</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">x_dropoff</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;x_dropoff must be &gt;= 1, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">x_dropoff</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">top_n</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;top_n must be &gt;= 1, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">top_n</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

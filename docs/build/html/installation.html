@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/translations.js?v=beaddf03"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+    <link rel="next" title="Quickstart" href="quickstart.html" />
+    <link rel="prev" title="欢迎来到blastmini主页!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">系统要求</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">安装方法</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id3">1. 从源码安装（开发模式）</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">2. 安装可选依赖（用于工作流和基准测试）</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#docker">3. 使用 Docker（无需配置环境）</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id5">验证安装</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/installation.rst.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<p>blastmini 支持多种安装方式。推荐使用 <strong>pip 开发模式安装</strong> 以便于测试和修改源码。</p>
+<section id="id1">
+<h2>系统要求<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Python 3.9 或更高版本</p></li>
+<li><p>建议使用 Linux 或 WSL 2 环境</p></li>
+<li><p>可选：Docker（用于容器化运行）</p></li>
+</ul>
+</section>
+<section id="id2">
+<h2>安装方法<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<section id="id3">
+<h3>1. 从源码安装（开发模式）<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<p>将包链接到你的 Python 环境中，代码修改后立即生效。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 克隆或进入项目根目录</span>
+<span class="nb">cd</span><span class="w"> </span>/path/to/blastmini
+
+<span class="c1"># 安装依赖并注册命令行工具</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+
+<span class="c1"># 验证安装</span>
+blastmini<span class="w"> </span>--help
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h3>2. 安装可选依赖（用于工作流和基准测试）<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<p>如果你想运行 Snakemake 工作流或生成性能图表，建议安装以下依赖：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>snakemake<span class="w"> </span>pandas<span class="w"> </span>matplotlib<span class="w"> </span>seaborn<span class="w"> </span>psutil<span class="w"> </span>memory-profiler
+</pre></div>
+</div>
+<p>或者直接使用项目提供的 <cite>requirements.txt</cite>。</p>
+</section>
+<section id="docker">
+<h3>3. 使用 Docker（无需配置环境）<a class="headerlink" href="#docker" title="Link to this heading"></a></h3>
+<p>如果你不想在本地安装 Python 环境，可以使用已构建的 Docker 镜像：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 构建镜像</span>
+docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>blastmini:latest<span class="w"> </span>.
+
+<span class="c1"># 运行搜索（需挂载数据目录）</span>
+docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/data:/data<span class="w"> </span>blastmini:latest<span class="w"> </span>blastmini<span class="w"> </span>search<span class="w"> </span>-q<span class="w"> </span>/data/queries.fa<span class="w"> </span>-d<span class="w"> </span>/data/index.json<span class="w"> </span>--database-fasta<span class="w"> </span>/data/NC_000913.3.fa
+</pre></div>
+</div>
+</section>
+</section>
+<section id="id5">
+<h2>验证安装<a class="headerlink" href="#id5" title="Link to this heading"></a></h2>
+<p>打开终端，输入以下命令，如果显示帮助信息则说明安装成功：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>blastmini<span class="w"> </span>--version
+<span class="c1"># 输出示例: blastmini 0.1.0</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="页脚">
+        <a href="index.html" class="btn btn-neutral float-left" title="欢迎来到blastmini主页!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="quickstart.html" class="btn btn-neutral float-right" title="Quickstart" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

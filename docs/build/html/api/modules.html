@@ -1,0 +1,933 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/translations.js?v=beaddf03"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="blastmini package" href="blastmini.html" />
+    <link rel="prev" title="Quickstart" href="../quickstart.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">blastmini</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html">blastmini package</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">blastmini</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/modules.rst.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="blastmini">
+<h1>blastmini<a class="headerlink" href="#blastmini" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="blastmini.html">blastmini package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.kmer_size"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.kmer_size</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.match_score"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.match_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.mismatch_penalty"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.mismatch_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.gap_open_penalty"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_open_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.gap_extend_penalty"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_extend_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.x_dropoff"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.x_dropoff</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.top_n"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.top_n</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.min_score"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.AlignmentConfig.min_identity"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_identity</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id0"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_extend_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id1"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_open_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id2"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.kmer_size</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id3"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.match_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id4"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_identity</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id5"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id6"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.mismatch_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id7"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.top_n</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id8"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.x_dropoff</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.results"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.results</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.total_hits"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_hits</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.total_time"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_time</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.get_best_hits"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.get_best_hits()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id9"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.results</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.save"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.save()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.to_dict"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.to_dict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.to_json"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.to_json()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id10"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_hits</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BatchSearchResult.total_queries"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_queries</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id11"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_time</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.BlastMini"><code class="docutils literal notranslate"><span class="pre">BlastMini</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.config"><code class="docutils literal notranslate"><span class="pre">BlastMini.config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.index"><code class="docutils literal notranslate"><span class="pre">BlastMini.index</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.subject_sequences"><code class="docutils literal notranslate"><span class="pre">BlastMini.subject_sequences</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.verbose"><code class="docutils literal notranslate"><span class="pre">BlastMini.verbose</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.estimate_background"><code class="docutils literal notranslate"><span class="pre">BlastMini.estimate_background()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.from_fasta"><code class="docutils literal notranslate"><span class="pre">BlastMini.from_fasta()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.from_index"><code class="docutils literal notranslate"><span class="pre">BlastMini.from_index()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.get_stats"><code class="docutils literal notranslate"><span class="pre">BlastMini.get_stats()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.save_index"><code class="docutils literal notranslate"><span class="pre">BlastMini.save_index()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.search"><code class="docutils literal notranslate"><span class="pre">BlastMini.search()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.search_fasta"><code class="docutils literal notranslate"><span class="pre">BlastMini.search_fasta()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.set_config"><code class="docutils literal notranslate"><span class="pre">BlastMini.set_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.BlastMini.set_verbose"><code class="docutils literal notranslate"><span class="pre">BlastMini.set_verbose()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult"><code class="docutils literal notranslate"><span class="pre">ExtensionResult</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.query_id"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.subject_id"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.query_start"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.query_end"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.subject_start"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.subject_end"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.score"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.identity"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.identity</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.mismatches"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.mismatches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.alignment_length"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.alignment_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.query_alignment"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.subject_alignment"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.strand"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.strand</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.seed_origin"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.seed_origin</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.max_score_during_extension"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.max_score_during_extension</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.extension_steps"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.extension_steps</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id12"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.alignment_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id13"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.extension_steps</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id14"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.identity</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.identity_percent"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.identity_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id15"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.max_score_during_extension</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id16"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.mismatches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id17"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id18"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id19"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.query_sequence"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_sequence</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id20"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id21"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id22"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.seed_origin</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id23"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.strand</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id24"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id25"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id26"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.subject_sequence"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_sequence</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id27"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionResult.to_hit"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.to_hit()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats"><code class="docutils literal notranslate"><span class="pre">ExtensionStats</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.total_extensions"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.successful_extensions"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.successful_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.failed_extensions"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.failed_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.total_extension_steps"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extension_steps</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.average_extension_length"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.average_extension_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.max_extension_length"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_extension_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.min_score"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.min_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.max_score"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.total_time_ms"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_time_ms</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id28"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.average_extension_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id29"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.failed_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id30"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_extension_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id31"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id32"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.min_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ExtensionStats.record_extension"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.record_extension()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id33"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.successful_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id34"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extension_steps</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id35"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id36"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_time_ms</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.Hit"><code class="docutils literal notranslate"><span class="pre">Hit</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.query_id"><code class="docutils literal notranslate"><span class="pre">Hit.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.subject_id"><code class="docutils literal notranslate"><span class="pre">Hit.subject_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.score"><code class="docutils literal notranslate"><span class="pre">Hit.score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.identity_percent"><code class="docutils literal notranslate"><span class="pre">Hit.identity_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.alignment_length"><code class="docutils literal notranslate"><span class="pre">Hit.alignment_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.query_start"><code class="docutils literal notranslate"><span class="pre">Hit.query_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.query_end"><code class="docutils literal notranslate"><span class="pre">Hit.query_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.subject_start"><code class="docutils literal notranslate"><span class="pre">Hit.subject_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.subject_end"><code class="docutils literal notranslate"><span class="pre">Hit.subject_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.query_alignment"><code class="docutils literal notranslate"><span class="pre">Hit.query_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.subject_alignment"><code class="docutils literal notranslate"><span class="pre">Hit.subject_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.evalue"><code class="docutils literal notranslate"><span class="pre">Hit.evalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.bit_score"><code class="docutils literal notranslate"><span class="pre">Hit.bit_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id37"><code class="docutils literal notranslate"><span class="pre">Hit.alignment_length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id38"><code class="docutils literal notranslate"><span class="pre">Hit.bit_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id39"><code class="docutils literal notranslate"><span class="pre">Hit.evalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id40"><code class="docutils literal notranslate"><span class="pre">Hit.identity_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id41"><code class="docutils literal notranslate"><span class="pre">Hit.query_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id42"><code class="docutils literal notranslate"><span class="pre">Hit.query_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id43"><code class="docutils literal notranslate"><span class="pre">Hit.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id44"><code class="docutils literal notranslate"><span class="pre">Hit.query_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id45"><code class="docutils literal notranslate"><span class="pre">Hit.score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id46"><code class="docutils literal notranslate"><span class="pre">Hit.subject_alignment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id47"><code class="docutils literal notranslate"><span class="pre">Hit.subject_end</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id48"><code class="docutils literal notranslate"><span class="pre">Hit.subject_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id49"><code class="docutils literal notranslate"><span class="pre">Hit.subject_start</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.to_tsv"><code class="docutils literal notranslate"><span class="pre">Hit.to_tsv()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Hit.tsv_header"><code class="docutils literal notranslate"><span class="pre">Hit.tsv_header()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.HitScorer"><code class="docutils literal notranslate"><span class="pre">HitScorer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.config"><code class="docutils literal notranslate"><span class="pre">HitScorer.config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.matrix"><code class="docutils literal notranslate"><span class="pre">HitScorer.matrix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.min_score"><code class="docutils literal notranslate"><span class="pre">HitScorer.min_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.min_identity"><code class="docutils literal notranslate"><span class="pre">HitScorer.min_identity</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.top_n"><code class="docutils literal notranslate"><span class="pre">HitScorer.top_n</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.merge_hits"><code class="docutils literal notranslate"><span class="pre">HitScorer.merge_hits()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.score_hit"><code class="docutils literal notranslate"><span class="pre">HitScorer.score_hit()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.HitScorer.score_hits"><code class="docutils literal notranslate"><span class="pre">HitScorer.score_hits()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex"><code class="docutils literal notranslate"><span class="pre">KmerIndex</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.index"><code class="docutils literal notranslate"><span class="pre">KmerIndex.index</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.k"><code class="docutils literal notranslate"><span class="pre">KmerIndex.k</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.stats"><code class="docutils literal notranslate"><span class="pre">KmerIndex.stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.subject_ids"><code class="docutils literal notranslate"><span class="pre">KmerIndex.subject_ids</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.build"><code class="docutils literal notranslate"><span class="pre">KmerIndex.build()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.build_from_fasta"><code class="docutils literal notranslate"><span class="pre">KmerIndex.build_from_fasta()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.contains"><code class="docutils literal notranslate"><span class="pre">KmerIndex.contains()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.coverage_stats"><code class="docutils literal notranslate"><span class="pre">KmerIndex.coverage_stats()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.get_kmers_with_counts"><code class="docutils literal notranslate"><span class="pre">KmerIndex.get_kmers_with_counts()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.load"><code class="docutils literal notranslate"><span class="pre">KmerIndex.load()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.lookup"><code class="docutils literal notranslate"><span class="pre">KmerIndex.lookup()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.lookup_batch"><code class="docutils literal notranslate"><span class="pre">KmerIndex.lookup_batch()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.prune"><code class="docutils literal notranslate"><span class="pre">KmerIndex.prune()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.KmerIndex.save"><code class="docutils literal notranslate"><span class="pre">KmerIndex.save()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.scores"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.scores</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.mean"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.mean</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.std"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.std</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.min_score"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.min_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.max_score"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.max_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.n_samples"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.n_samples</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.fitted_params"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.fitted_params</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.add_score"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.add_score()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.estimate_extreme_params"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.estimate_extreme_params()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.fit_normal"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.fit_normal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id50"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.fitted_params</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.get_evalue"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.get_evalue()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.get_percentile"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.get_percentile()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoreDistribution.get_pvalue"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.get_pvalue()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id51"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.max_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id52"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.mean</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id53"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.min_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id54"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.n_samples</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id55"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.scores</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id56"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.std</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit"><code class="docutils literal notranslate"><span class="pre">ScoredHit</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.hit"><code class="docutils literal notranslate"><span class="pre">ScoredHit.hit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.raw_score"><code class="docutils literal notranslate"><span class="pre">ScoredHit.raw_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.bit_score"><code class="docutils literal notranslate"><span class="pre">ScoredHit.bit_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.evalue"><code class="docutils literal notranslate"><span class="pre">ScoredHit.evalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.identity_percent"><code class="docutils literal notranslate"><span class="pre">ScoredHit.identity_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.similarity_percent"><code class="docutils literal notranslate"><span class="pre">ScoredHit.similarity_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.coverage_percent"><code class="docutils literal notranslate"><span class="pre">ScoredHit.coverage_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.rank"><code class="docutils literal notranslate"><span class="pre">ScoredHit.rank</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.normalized_score"><code class="docutils literal notranslate"><span class="pre">ScoredHit.normalized_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id57"><code class="docutils literal notranslate"><span class="pre">ScoredHit.bit_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id58"><code class="docutils literal notranslate"><span class="pre">ScoredHit.coverage_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id59"><code class="docutils literal notranslate"><span class="pre">ScoredHit.evalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id60"><code class="docutils literal notranslate"><span class="pre">ScoredHit.hit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id61"><code class="docutils literal notranslate"><span class="pre">ScoredHit.identity_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id62"><code class="docutils literal notranslate"><span class="pre">ScoredHit.normalized_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id63"><code class="docutils literal notranslate"><span class="pre">ScoredHit.rank</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id64"><code class="docutils literal notranslate"><span class="pre">ScoredHit.raw_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id65"><code class="docutils literal notranslate"><span class="pre">ScoredHit.similarity_percent</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.ScoredHit.to_dict"><code class="docutils literal notranslate"><span class="pre">ScoredHit.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.SearchResult"><code class="docutils literal notranslate"><span class="pre">SearchResult</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.query_id"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.query_sequence"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_sequence</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.hits"><code class="docutils literal notranslate"><span class="pre">SearchResult.hits</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.num_seeds_found"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_seeds_found</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.num_extensions"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.search_time"><code class="docutils literal notranslate"><span class="pre">SearchResult.search_time</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.parameters"><code class="docutils literal notranslate"><span class="pre">SearchResult.parameters</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.has_significant_hits"><code class="docutils literal notranslate"><span class="pre">SearchResult.has_significant_hits</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id66"><code class="docutils literal notranslate"><span class="pre">SearchResult.hits</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id67"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.num_hits"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_hits</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id68"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_seeds_found</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id69"><code class="docutils literal notranslate"><span class="pre">SearchResult.parameters</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id70"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id71"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_sequence</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.save"><code class="docutils literal notranslate"><span class="pre">SearchResult.save()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id72"><code class="docutils literal notranslate"><span class="pre">SearchResult.search_time</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.to_dict"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_dict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.to_json"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_json()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.to_text"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.to_tsv"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_tsv()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SearchResult.top_hit"><code class="docutils literal notranslate"><span class="pre">SearchResult.top_hit</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.Seed"><code class="docutils literal notranslate"><span class="pre">Seed</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.query_id"><code class="docutils literal notranslate"><span class="pre">Seed.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.subject_id"><code class="docutils literal notranslate"><span class="pre">Seed.subject_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.query_pos"><code class="docutils literal notranslate"><span class="pre">Seed.query_pos</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.subject_pos"><code class="docutils literal notranslate"><span class="pre">Seed.subject_pos</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.kmer"><code class="docutils literal notranslate"><span class="pre">Seed.kmer</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.score"><code class="docutils literal notranslate"><span class="pre">Seed.score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.strand"><code class="docutils literal notranslate"><span class="pre">Seed.strand</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.distance_to"><code class="docutils literal notranslate"><span class="pre">Seed.distance_to()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.Seed.is_on_same_diagonal"><code class="docutils literal notranslate"><span class="pre">Seed.is_on_same_diagonal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id73"><code class="docutils literal notranslate"><span class="pre">Seed.kmer</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id74"><code class="docutils literal notranslate"><span class="pre">Seed.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id75"><code class="docutils literal notranslate"><span class="pre">Seed.query_pos</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id76"><code class="docutils literal notranslate"><span class="pre">Seed.score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id77"><code class="docutils literal notranslate"><span class="pre">Seed.strand</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id78"><code class="docutils literal notranslate"><span class="pre">Seed.subject_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id79"><code class="docutils literal notranslate"><span class="pre">Seed.subject_pos</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster"><code class="docutils literal notranslate"><span class="pre">SeedCluster</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.query_id"><code class="docutils literal notranslate"><span class="pre">SeedCluster.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.subject_id"><code class="docutils literal notranslate"><span class="pre">SeedCluster.subject_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.seeds"><code class="docutils literal notranslate"><span class="pre">SeedCluster.seeds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.strand"><code class="docutils literal notranslate"><span class="pre">SeedCluster.strand</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.query_range"><code class="docutils literal notranslate"><span class="pre">SeedCluster.query_range</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.subject_range"><code class="docutils literal notranslate"><span class="pre">SeedCluster.subject_range</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.total_score"><code class="docutils literal notranslate"><span class="pre">SeedCluster.total_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.density"><code class="docutils literal notranslate"><span class="pre">SeedCluster.density</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.add_seed"><code class="docutils literal notranslate"><span class="pre">SeedCluster.add_seed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedCluster.max_score_seed"><code class="docutils literal notranslate"><span class="pre">SeedCluster.max_score_seed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id80"><code class="docutils literal notranslate"><span class="pre">SeedCluster.query_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id81"><code class="docutils literal notranslate"><span class="pre">SeedCluster.seeds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id82"><code class="docutils literal notranslate"><span class="pre">SeedCluster.strand</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id83"><code class="docutils literal notranslate"><span class="pre">SeedCluster.subject_id</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender"><code class="docutils literal notranslate"><span class="pre">SeedExtender</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.config"><code class="docutils literal notranslate"><span class="pre">SeedExtender.config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.match_score"><code class="docutils literal notranslate"><span class="pre">SeedExtender.match_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.mismatch_penalty"><code class="docutils literal notranslate"><span class="pre">SeedExtender.mismatch_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.x_dropoff"><code class="docutils literal notranslate"><span class="pre">SeedExtender.x_dropoff</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.gap_open_penalty"><code class="docutils literal notranslate"><span class="pre">SeedExtender.gap_open_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.gap_extend_penalty"><code class="docutils literal notranslate"><span class="pre">SeedExtender.gap_extend_penalty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.min_extension_score"><code class="docutils literal notranslate"><span class="pre">SeedExtender.min_extension_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.stats"><code class="docutils literal notranslate"><span class="pre">SeedExtender.stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.estimate_extension_time"><code class="docutils literal notranslate"><span class="pre">SeedExtender.estimate_extension_time()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.extend_clusters"><code class="docutils literal notranslate"><span class="pre">SeedExtender.extend_clusters()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.extend_seed"><code class="docutils literal notranslate"><span class="pre">SeedExtender.extend_seed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedExtender.extend_seeds"><code class="docutils literal notranslate"><span class="pre">SeedExtender.extend_seeds()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder"><code class="docutils literal notranslate"><span class="pre">SeedFinder</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.index"><code class="docutils literal notranslate"><span class="pre">SeedFinder.index</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.config"><code class="docutils literal notranslate"><span class="pre">SeedFinder.config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.canonical"><code class="docutils literal notranslate"><span class="pre">SeedFinder.canonical</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.min_seed_score"><code class="docutils literal notranslate"><span class="pre">SeedFinder.min_seed_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.max_seed_cluster_gap"><code class="docutils literal notranslate"><span class="pre">SeedFinder.max_seed_cluster_gap</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.cluster_seeds"><code class="docutils literal notranslate"><span class="pre">SeedFinder.cluster_seeds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.find_best_seeds"><code class="docutils literal notranslate"><span class="pre">SeedFinder.find_best_seeds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.find_seeds"><code class="docutils literal notranslate"><span class="pre">SeedFinder.find_seeds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SeedFinder.find_seeds_batch"><code class="docutils literal notranslate"><span class="pre">SeedFinder.find_seeds_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.SequenceRecord"><code class="docutils literal notranslate"><span class="pre">SequenceRecord</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SequenceRecord.id"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SequenceRecord.sequence"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.sequence</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SequenceRecord.description"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.description</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id84"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.description</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id85"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id86"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.sequence</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.config"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.seed_extender"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.seed_extender</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.hit_scorer"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.hit_scorer</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.n_permutations"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.n_permutations</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.random_seed"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.random_seed</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.background_distribution"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.background_distribution</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.extreme_params"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.extreme_params</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.adjust_for_multiple_testing"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.adjust_for_multiple_testing()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.estimate_background_distribution"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_background_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.estimate_extreme_value_distribution"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_extreme_value_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.estimate_significance"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_significance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceEstimator.estimate_significance_batch"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_significance_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult"><code class="docutils literal notranslate"><span class="pre">SignificanceResult</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.hit"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.hit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.raw_score"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.raw_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.pvalue"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.pvalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.evalue"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.evalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.bit_score"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.bit_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.lambda_param"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.lambda_param</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.K_param"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.K_param</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.is_significant"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.is_significant</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.significance_level"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.significance_level</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id87"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.K_param</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id88"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.bit_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id89"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.evalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id90"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.hit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id91"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.is_significant</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id92"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.lambda_param</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id93"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.pvalue</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id94"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.raw_score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#id95"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.significance_level</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.SignificanceResult.to_dict"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.build_index_from_fasta"><code class="docutils literal notranslate"><span class="pre">build_index_from_fasta()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.cli_main"><code class="docutils literal notranslate"><span class="pre">cli_main()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.format_hits_as_bed"><code class="docutils literal notranslate"><span class="pre">format_hits_as_bed()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.format_hits_as_json"><code class="docutils literal notranslate"><span class="pre">format_hits_as_json()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.format_hits_as_text"><code class="docutils literal notranslate"><span class="pre">format_hits_as_text()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.format_hits_as_tsv"><code class="docutils literal notranslate"><span class="pre">format_hits_as_tsv()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.format_significance_results"><code class="docutils literal notranslate"><span class="pre">format_significance_results()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.get_sequence_stats"><code class="docutils literal notranslate"><span class="pre">get_sequence_stats()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.load_hits_from_tsv"><code class="docutils literal notranslate"><span class="pre">load_hits_from_tsv()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.load_index"><code class="docutils literal notranslate"><span class="pre">load_index()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.load_index_from_file"><code class="docutils literal notranslate"><span class="pre">load_index_from_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.parse_fasta"><code class="docutils literal notranslate"><span class="pre">parse_fasta()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.parse_fasta_multi"><code class="docutils literal notranslate"><span class="pre">parse_fasta_multi()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.quick_batch_search"><code class="docutils literal notranslate"><span class="pre">quick_batch_search()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.quick_search"><code class="docutils literal notranslate"><span class="pre">quick_search()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.save_hits_to_tsv"><code class="docutils literal notranslate"><span class="pre">save_hits_to_tsv()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.save_index"><code class="docutils literal notranslate"><span class="pre">save_index()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#blastmini.visualize_alignment"><code class="docutils literal notranslate"><span class="pre">visualize_alignment()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.api">blastmini.api module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.results"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.results</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.total_hits"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_hits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.total_time"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.get_best_hits"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.get_best_hits()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id96"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.results</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.save"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.to_dict"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.to_json"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.to_json()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id97"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_hits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BatchSearchResult.total_queries"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_queries</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id98"><code class="docutils literal notranslate"><span class="pre">BatchSearchResult.total_time</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini"><code class="docutils literal notranslate"><span class="pre">BlastMini</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.config"><code class="docutils literal notranslate"><span class="pre">BlastMini.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.index"><code class="docutils literal notranslate"><span class="pre">BlastMini.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.subject_sequences"><code class="docutils literal notranslate"><span class="pre">BlastMini.subject_sequences</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.verbose"><code class="docutils literal notranslate"><span class="pre">BlastMini.verbose</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.estimate_background"><code class="docutils literal notranslate"><span class="pre">BlastMini.estimate_background()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.from_fasta"><code class="docutils literal notranslate"><span class="pre">BlastMini.from_fasta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.from_index"><code class="docutils literal notranslate"><span class="pre">BlastMini.from_index()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.get_stats"><code class="docutils literal notranslate"><span class="pre">BlastMini.get_stats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.save_index"><code class="docutils literal notranslate"><span class="pre">BlastMini.save_index()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.search"><code class="docutils literal notranslate"><span class="pre">BlastMini.search()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.search_fasta"><code class="docutils literal notranslate"><span class="pre">BlastMini.search_fasta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.set_config"><code class="docutils literal notranslate"><span class="pre">BlastMini.set_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.BlastMini.set_verbose"><code class="docutils literal notranslate"><span class="pre">BlastMini.set_verbose()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult"><code class="docutils literal notranslate"><span class="pre">SearchResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.query_id"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.query_sequence"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_sequence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.hits"><code class="docutils literal notranslate"><span class="pre">SearchResult.hits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.num_seeds_found"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_seeds_found</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.num_extensions"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.search_time"><code class="docutils literal notranslate"><span class="pre">SearchResult.search_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.parameters"><code class="docutils literal notranslate"><span class="pre">SearchResult.parameters</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.has_significant_hits"><code class="docutils literal notranslate"><span class="pre">SearchResult.has_significant_hits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id99"><code class="docutils literal notranslate"><span class="pre">SearchResult.hits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id100"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.num_hits"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_hits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id101"><code class="docutils literal notranslate"><span class="pre">SearchResult.num_seeds_found</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id102"><code class="docutils literal notranslate"><span class="pre">SearchResult.parameters</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id103"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id104"><code class="docutils literal notranslate"><span class="pre">SearchResult.query_sequence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.save"><code class="docutils literal notranslate"><span class="pre">SearchResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id105"><code class="docutils literal notranslate"><span class="pre">SearchResult.search_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.to_dict"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.to_json"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_json()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.to_text"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_text()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.to_tsv"><code class="docutils literal notranslate"><span class="pre">SearchResult.to_tsv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.api.SearchResult.top_hit"><code class="docutils literal notranslate"><span class="pre">SearchResult.top_hit</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.api.default_progress_callback"><code class="docutils literal notranslate"><span class="pre">default_progress_callback()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.api.quick_batch_search"><code class="docutils literal notranslate"><span class="pre">quick_batch_search()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.api.quick_search"><code class="docutils literal notranslate"><span class="pre">quick_search()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.cli">blastmini.cli module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.cmd_build"><code class="docutils literal notranslate"><span class="pre">cmd_build()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.cmd_info"><code class="docutils literal notranslate"><span class="pre">cmd_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.cmd_search"><code class="docutils literal notranslate"><span class="pre">cmd_search()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.cmd_significance"><code class="docutils literal notranslate"><span class="pre">cmd_significance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.cmd_stats"><code class="docutils literal notranslate"><span class="pre">cmd_stats()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.cmd_view"><code class="docutils literal notranslate"><span class="pre">cmd_view()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.create_parser"><code class="docutils literal notranslate"><span class="pre">create_parser()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.format_duration"><code class="docutils literal notranslate"><span class="pre">format_duration()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.print_error"><code class="docutils literal notranslate"><span class="pre">print_error()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.print_info"><code class="docutils literal notranslate"><span class="pre">print_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.print_success"><code class="docutils literal notranslate"><span class="pre">print_success()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.cli.validate_fasta_file"><code class="docutils literal notranslate"><span class="pre">validate_fasta_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.extension">blastmini.extension module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult"><code class="docutils literal notranslate"><span class="pre">ExtensionResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.query_id"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.subject_id"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.query_start"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.query_end"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.subject_start"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.subject_end"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.score"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.identity"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.identity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.mismatches"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.mismatches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.alignment_length"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.alignment_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.query_alignment"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.subject_alignment"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.strand"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.strand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.seed_origin"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.seed_origin</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.max_score_during_extension"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.max_score_during_extension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.extension_steps"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.extension_steps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id106"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.alignment_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id107"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.extension_steps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id108"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.identity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.identity_percent"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.identity_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id109"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.max_score_during_extension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id110"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.mismatches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id111"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id112"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id113"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.query_sequence"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_sequence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id114"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.query_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id115"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id116"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.seed_origin</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id117"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.strand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id118"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id119"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id120"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.subject_sequence"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_sequence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id121"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.subject_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionResult.to_hit"><code class="docutils literal notranslate"><span class="pre">ExtensionResult.to_hit()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats"><code class="docutils literal notranslate"><span class="pre">ExtensionStats</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.total_extensions"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.successful_extensions"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.successful_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.failed_extensions"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.failed_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.total_extension_steps"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extension_steps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.average_extension_length"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.average_extension_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.max_extension_length"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_extension_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.min_score"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.min_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.max_score"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.total_time_ms"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_time_ms</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id122"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.average_extension_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id123"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.failed_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id124"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_extension_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id125"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.max_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id126"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.min_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.ExtensionStats.record_extension"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.record_extension()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id127"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.successful_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id128"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extension_steps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id129"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_extensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id130"><code class="docutils literal notranslate"><span class="pre">ExtensionStats.total_time_ms</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender"><code class="docutils literal notranslate"><span class="pre">SeedExtender</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.config"><code class="docutils literal notranslate"><span class="pre">SeedExtender.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.match_score"><code class="docutils literal notranslate"><span class="pre">SeedExtender.match_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.mismatch_penalty"><code class="docutils literal notranslate"><span class="pre">SeedExtender.mismatch_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.x_dropoff"><code class="docutils literal notranslate"><span class="pre">SeedExtender.x_dropoff</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.gap_open_penalty"><code class="docutils literal notranslate"><span class="pre">SeedExtender.gap_open_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.gap_extend_penalty"><code class="docutils literal notranslate"><span class="pre">SeedExtender.gap_extend_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.min_extension_score"><code class="docutils literal notranslate"><span class="pre">SeedExtender.min_extension_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.stats"><code class="docutils literal notranslate"><span class="pre">SeedExtender.stats</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.estimate_extension_time"><code class="docutils literal notranslate"><span class="pre">SeedExtender.estimate_extension_time()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.extend_clusters"><code class="docutils literal notranslate"><span class="pre">SeedExtender.extend_clusters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.extend_seed"><code class="docutils literal notranslate"><span class="pre">SeedExtender.extend_seed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.extension.SeedExtender.extend_seeds"><code class="docutils literal notranslate"><span class="pre">SeedExtender.extend_seeds()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.extension.evaluate_extension_result"><code class="docutils literal notranslate"><span class="pre">evaluate_extension_result()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.extension.is_high_quality_extension"><code class="docutils literal notranslate"><span class="pre">is_high_quality_extension()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.extension.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.index">blastmini.index module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.IndexStats"><code class="docutils literal notranslate"><span class="pre">IndexStats</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.IndexStats.total_kmers"><code class="docutils literal notranslate"><span class="pre">IndexStats.total_kmers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.IndexStats.unique_kmers"><code class="docutils literal notranslate"><span class="pre">IndexStats.unique_kmers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.IndexStats.total_sequences"><code class="docutils literal notranslate"><span class="pre">IndexStats.total_sequences</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.IndexStats.total_length"><code class="docutils literal notranslate"><span class="pre">IndexStats.total_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.IndexStats.kmer_size"><code class="docutils literal notranslate"><span class="pre">IndexStats.kmer_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.IndexStats.memory_estimate_mb"><code class="docutils literal notranslate"><span class="pre">IndexStats.memory_estimate_mb</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id131"><code class="docutils literal notranslate"><span class="pre">IndexStats.kmer_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id132"><code class="docutils literal notranslate"><span class="pre">IndexStats.memory_estimate_mb</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id133"><code class="docutils literal notranslate"><span class="pre">IndexStats.total_kmers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id134"><code class="docutils literal notranslate"><span class="pre">IndexStats.total_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id135"><code class="docutils literal notranslate"><span class="pre">IndexStats.total_sequences</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id136"><code class="docutils literal notranslate"><span class="pre">IndexStats.unique_kmers</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex"><code class="docutils literal notranslate"><span class="pre">KmerIndex</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.index"><code class="docutils literal notranslate"><span class="pre">KmerIndex.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.k"><code class="docutils literal notranslate"><span class="pre">KmerIndex.k</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.stats"><code class="docutils literal notranslate"><span class="pre">KmerIndex.stats</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.subject_ids"><code class="docutils literal notranslate"><span class="pre">KmerIndex.subject_ids</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.build"><code class="docutils literal notranslate"><span class="pre">KmerIndex.build()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.build_from_fasta"><code class="docutils literal notranslate"><span class="pre">KmerIndex.build_from_fasta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.contains"><code class="docutils literal notranslate"><span class="pre">KmerIndex.contains()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.coverage_stats"><code class="docutils literal notranslate"><span class="pre">KmerIndex.coverage_stats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.get_kmers_with_counts"><code class="docutils literal notranslate"><span class="pre">KmerIndex.get_kmers_with_counts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.load"><code class="docutils literal notranslate"><span class="pre">KmerIndex.load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.lookup"><code class="docutils literal notranslate"><span class="pre">KmerIndex.lookup()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.lookup_batch"><code class="docutils literal notranslate"><span class="pre">KmerIndex.lookup_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.prune"><code class="docutils literal notranslate"><span class="pre">KmerIndex.prune()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.index.KmerIndex.save"><code class="docutils literal notranslate"><span class="pre">KmerIndex.save()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.build_index_from_fasta"><code class="docutils literal notranslate"><span class="pre">build_index_from_fasta()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.canonical_kmer"><code class="docutils literal notranslate"><span class="pre">canonical_kmer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.extract_kmers"><code class="docutils literal notranslate"><span class="pre">extract_kmers()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.load_index_from_file"><code class="docutils literal notranslate"><span class="pre">load_index_from_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.index.reverse_complement"><code class="docutils literal notranslate"><span class="pre">reverse_complement()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.io">blastmini.io module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.count_sequences"><code class="docutils literal notranslate"><span class="pre">count_sequences()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.get_sequence_stats"><code class="docutils literal notranslate"><span class="pre">get_sequence_stats()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.load_hits_from_tsv"><code class="docutils literal notranslate"><span class="pre">load_hits_from_tsv()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.load_index"><code class="docutils literal notranslate"><span class="pre">load_index()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.parse_fasta"><code class="docutils literal notranslate"><span class="pre">parse_fasta()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.parse_fasta_multi"><code class="docutils literal notranslate"><span class="pre">parse_fasta_multi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.save_hits_to_tsv"><code class="docutils literal notranslate"><span class="pre">save_hits_to_tsv()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.io.save_index"><code class="docutils literal notranslate"><span class="pre">save_index()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.models">blastmini.models module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.kmer_size"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.kmer_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.match_score"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.match_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.mismatch_penalty"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.mismatch_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.gap_open_penalty"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_open_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.gap_extend_penalty"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_extend_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.x_dropoff"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.x_dropoff</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.top_n"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.top_n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.min_score"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.AlignmentConfig.min_identity"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_identity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id137"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_extend_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id138"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.gap_open_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id139"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.kmer_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id140"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.match_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id141"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_identity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id142"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.min_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id143"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.mismatch_penalty</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id144"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.top_n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id145"><code class="docutils literal notranslate"><span class="pre">AlignmentConfig.x_dropoff</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.models.Hit"><code class="docutils literal notranslate"><span class="pre">Hit</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.query_id"><code class="docutils literal notranslate"><span class="pre">Hit.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.subject_id"><code class="docutils literal notranslate"><span class="pre">Hit.subject_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.score"><code class="docutils literal notranslate"><span class="pre">Hit.score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.identity_percent"><code class="docutils literal notranslate"><span class="pre">Hit.identity_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.alignment_length"><code class="docutils literal notranslate"><span class="pre">Hit.alignment_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.query_start"><code class="docutils literal notranslate"><span class="pre">Hit.query_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.query_end"><code class="docutils literal notranslate"><span class="pre">Hit.query_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.subject_start"><code class="docutils literal notranslate"><span class="pre">Hit.subject_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.subject_end"><code class="docutils literal notranslate"><span class="pre">Hit.subject_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.query_alignment"><code class="docutils literal notranslate"><span class="pre">Hit.query_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.subject_alignment"><code class="docutils literal notranslate"><span class="pre">Hit.subject_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.evalue"><code class="docutils literal notranslate"><span class="pre">Hit.evalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.bit_score"><code class="docutils literal notranslate"><span class="pre">Hit.bit_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id146"><code class="docutils literal notranslate"><span class="pre">Hit.alignment_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id147"><code class="docutils literal notranslate"><span class="pre">Hit.bit_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id148"><code class="docutils literal notranslate"><span class="pre">Hit.evalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id149"><code class="docutils literal notranslate"><span class="pre">Hit.identity_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id150"><code class="docutils literal notranslate"><span class="pre">Hit.query_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id151"><code class="docutils literal notranslate"><span class="pre">Hit.query_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id152"><code class="docutils literal notranslate"><span class="pre">Hit.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id153"><code class="docutils literal notranslate"><span class="pre">Hit.query_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id154"><code class="docutils literal notranslate"><span class="pre">Hit.score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id155"><code class="docutils literal notranslate"><span class="pre">Hit.subject_alignment</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id156"><code class="docutils literal notranslate"><span class="pre">Hit.subject_end</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id157"><code class="docutils literal notranslate"><span class="pre">Hit.subject_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id158"><code class="docutils literal notranslate"><span class="pre">Hit.subject_start</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.to_tsv"><code class="docutils literal notranslate"><span class="pre">Hit.to_tsv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.Hit.tsv_header"><code class="docutils literal notranslate"><span class="pre">Hit.tsv_header()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.models.SequenceRecord"><code class="docutils literal notranslate"><span class="pre">SequenceRecord</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.SequenceRecord.id"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.SequenceRecord.sequence"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.sequence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.models.SequenceRecord.description"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.description</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id159"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.description</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id160"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id161"><code class="docutils literal notranslate"><span class="pre">SequenceRecord.sequence</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.scoring">blastmini.scoring module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer"><code class="docutils literal notranslate"><span class="pre">HitScorer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.config"><code class="docutils literal notranslate"><span class="pre">HitScorer.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.matrix"><code class="docutils literal notranslate"><span class="pre">HitScorer.matrix</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.min_score"><code class="docutils literal notranslate"><span class="pre">HitScorer.min_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.min_identity"><code class="docutils literal notranslate"><span class="pre">HitScorer.min_identity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.top_n"><code class="docutils literal notranslate"><span class="pre">HitScorer.top_n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.merge_hits"><code class="docutils literal notranslate"><span class="pre">HitScorer.merge_hits()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.score_hit"><code class="docutils literal notranslate"><span class="pre">HitScorer.score_hit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.HitScorer.score_hits"><code class="docutils literal notranslate"><span class="pre">HitScorer.score_hits()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit"><code class="docutils literal notranslate"><span class="pre">ScoredHit</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.hit"><code class="docutils literal notranslate"><span class="pre">ScoredHit.hit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.raw_score"><code class="docutils literal notranslate"><span class="pre">ScoredHit.raw_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.bit_score"><code class="docutils literal notranslate"><span class="pre">ScoredHit.bit_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.evalue"><code class="docutils literal notranslate"><span class="pre">ScoredHit.evalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.identity_percent"><code class="docutils literal notranslate"><span class="pre">ScoredHit.identity_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.similarity_percent"><code class="docutils literal notranslate"><span class="pre">ScoredHit.similarity_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.coverage_percent"><code class="docutils literal notranslate"><span class="pre">ScoredHit.coverage_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.rank"><code class="docutils literal notranslate"><span class="pre">ScoredHit.rank</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.normalized_score"><code class="docutils literal notranslate"><span class="pre">ScoredHit.normalized_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id162"><code class="docutils literal notranslate"><span class="pre">ScoredHit.bit_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id163"><code class="docutils literal notranslate"><span class="pre">ScoredHit.coverage_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id164"><code class="docutils literal notranslate"><span class="pre">ScoredHit.evalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id165"><code class="docutils literal notranslate"><span class="pre">ScoredHit.hit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id166"><code class="docutils literal notranslate"><span class="pre">ScoredHit.identity_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id167"><code class="docutils literal notranslate"><span class="pre">ScoredHit.normalized_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id168"><code class="docutils literal notranslate"><span class="pre">ScoredHit.rank</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id169"><code class="docutils literal notranslate"><span class="pre">ScoredHit.raw_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id170"><code class="docutils literal notranslate"><span class="pre">ScoredHit.similarity_percent</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.scoring.ScoredHit.to_dict"><code class="docutils literal notranslate"><span class="pre">ScoredHit.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.calculate_alignment_score"><code class="docutils literal notranslate"><span class="pre">calculate_alignment_score()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.format_hit_as_text"><code class="docutils literal notranslate"><span class="pre">format_hit_as_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.format_hits_as_bed"><code class="docutils literal notranslate"><span class="pre">format_hits_as_bed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.format_hits_as_json"><code class="docutils literal notranslate"><span class="pre">format_hits_as_json()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.format_hits_as_text"><code class="docutils literal notranslate"><span class="pre">format_hits_as_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.format_hits_as_tsv"><code class="docutils literal notranslate"><span class="pre">format_hits_as_tsv()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.get_nucleotide_score"><code class="docutils literal notranslate"><span class="pre">get_nucleotide_score()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.scoring.visualize_alignment"><code class="docutils literal notranslate"><span class="pre">visualize_alignment()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.seeding">blastmini.seeding module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed"><code class="docutils literal notranslate"><span class="pre">Seed</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.query_id"><code class="docutils literal notranslate"><span class="pre">Seed.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.subject_id"><code class="docutils literal notranslate"><span class="pre">Seed.subject_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.query_pos"><code class="docutils literal notranslate"><span class="pre">Seed.query_pos</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.subject_pos"><code class="docutils literal notranslate"><span class="pre">Seed.subject_pos</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.kmer"><code class="docutils literal notranslate"><span class="pre">Seed.kmer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.score"><code class="docutils literal notranslate"><span class="pre">Seed.score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.strand"><code class="docutils literal notranslate"><span class="pre">Seed.strand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.distance_to"><code class="docutils literal notranslate"><span class="pre">Seed.distance_to()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.Seed.is_on_same_diagonal"><code class="docutils literal notranslate"><span class="pre">Seed.is_on_same_diagonal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id171"><code class="docutils literal notranslate"><span class="pre">Seed.kmer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id172"><code class="docutils literal notranslate"><span class="pre">Seed.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id173"><code class="docutils literal notranslate"><span class="pre">Seed.query_pos</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id174"><code class="docutils literal notranslate"><span class="pre">Seed.score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id175"><code class="docutils literal notranslate"><span class="pre">Seed.strand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id176"><code class="docutils literal notranslate"><span class="pre">Seed.subject_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id177"><code class="docutils literal notranslate"><span class="pre">Seed.subject_pos</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster"><code class="docutils literal notranslate"><span class="pre">SeedCluster</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.query_id"><code class="docutils literal notranslate"><span class="pre">SeedCluster.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.subject_id"><code class="docutils literal notranslate"><span class="pre">SeedCluster.subject_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.seeds"><code class="docutils literal notranslate"><span class="pre">SeedCluster.seeds</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.strand"><code class="docutils literal notranslate"><span class="pre">SeedCluster.strand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.query_range"><code class="docutils literal notranslate"><span class="pre">SeedCluster.query_range</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.subject_range"><code class="docutils literal notranslate"><span class="pre">SeedCluster.subject_range</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.total_score"><code class="docutils literal notranslate"><span class="pre">SeedCluster.total_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.density"><code class="docutils literal notranslate"><span class="pre">SeedCluster.density</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.add_seed"><code class="docutils literal notranslate"><span class="pre">SeedCluster.add_seed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedCluster.max_score_seed"><code class="docutils literal notranslate"><span class="pre">SeedCluster.max_score_seed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id178"><code class="docutils literal notranslate"><span class="pre">SeedCluster.query_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id179"><code class="docutils literal notranslate"><span class="pre">SeedCluster.seeds</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id180"><code class="docutils literal notranslate"><span class="pre">SeedCluster.strand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id181"><code class="docutils literal notranslate"><span class="pre">SeedCluster.subject_id</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder"><code class="docutils literal notranslate"><span class="pre">SeedFinder</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.index"><code class="docutils literal notranslate"><span class="pre">SeedFinder.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.config"><code class="docutils literal notranslate"><span class="pre">SeedFinder.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.canonical"><code class="docutils literal notranslate"><span class="pre">SeedFinder.canonical</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.min_seed_score"><code class="docutils literal notranslate"><span class="pre">SeedFinder.min_seed_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.max_seed_cluster_gap"><code class="docutils literal notranslate"><span class="pre">SeedFinder.max_seed_cluster_gap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.cluster_seeds"><code class="docutils literal notranslate"><span class="pre">SeedFinder.cluster_seeds()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.find_best_seeds"><code class="docutils literal notranslate"><span class="pre">SeedFinder.find_best_seeds()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.find_seeds"><code class="docutils literal notranslate"><span class="pre">SeedFinder.find_seeds()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.seeding.SeedFinder.find_seeds_batch"><code class="docutils literal notranslate"><span class="pre">SeedFinder.find_seeds_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.seeding.filter_seeds_by_coverage"><code class="docutils literal notranslate"><span class="pre">filter_seeds_by_coverage()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.seeding.filter_seeds_by_density"><code class="docutils literal notranslate"><span class="pre">filter_seeds_by_density()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.seeding.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="blastmini.html#module-blastmini.stats">blastmini.stats module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.scores"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.scores</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.mean"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.mean</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.std"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.std</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.min_score"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.min_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.max_score"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.max_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.n_samples"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.n_samples</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.fitted_params"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.fitted_params</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.add_score"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.add_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.estimate_extreme_params"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.estimate_extreme_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.fit_normal"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.fit_normal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id182"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.fitted_params</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.get_evalue"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.get_evalue()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.get_percentile"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.get_percentile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.ScoreDistribution.get_pvalue"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.get_pvalue()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id183"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.max_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id184"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.mean</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id185"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.min_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id186"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.n_samples</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id187"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.scores</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id188"><code class="docutils literal notranslate"><span class="pre">ScoreDistribution.std</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.config"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.seed_extender"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.seed_extender</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.hit_scorer"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.hit_scorer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.n_permutations"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.n_permutations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.random_seed"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.random_seed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.background_distribution"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.background_distribution</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.extreme_params"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.extreme_params</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.adjust_for_multiple_testing"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.adjust_for_multiple_testing()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.estimate_background_distribution"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_background_distribution()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.estimate_extreme_value_distribution"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_extreme_value_distribution()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.estimate_significance"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_significance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceEstimator.estimate_significance_batch"><code class="docutils literal notranslate"><span class="pre">SignificanceEstimator.estimate_significance_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult"><code class="docutils literal notranslate"><span class="pre">SignificanceResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.hit"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.hit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.raw_score"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.raw_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.pvalue"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.pvalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.evalue"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.evalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.bit_score"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.bit_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.lambda_param"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.lambda_param</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.K_param"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.K_param</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.is_significant"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.is_significant</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.significance_level"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.significance_level</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id189"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.K_param</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id190"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.bit_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id191"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.evalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id192"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.hit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id193"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.is_significant</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id194"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.lambda_param</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id195"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.pvalue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id196"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.raw_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#id197"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.significance_level</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="blastmini.html#blastmini.stats.SignificanceResult.to_dict"><code class="docutils literal notranslate"><span class="pre">SignificanceResult.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.stats.format_significance_results"><code class="docutils literal notranslate"><span class="pre">format_significance_results()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="blastmini.html#blastmini.stats.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="页脚">
+        <a href="../quickstart.html" class="btn btn-neutral float-left" title="Quickstart" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="blastmini.html" class="btn btn-neutral float-right" title="blastmini package" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

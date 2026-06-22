@@ -1,0 +1,954 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.extension &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.extension</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.extension 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Seed extension module for blastmini.</span>
+
+<span class="sd">This module implements the X-dropoff extension algorithm, which takes</span>
+<span class="sd">seed matches and extends them bidirectionally to find high-scoring</span>
+<span class="sd">segment pairs (HSPs). The extension phase is where the actual alignment</span>
+<span class="sd">is generated from the seed positions.</span>
+
+<span class="sd">Key features:</span>
+<span class="sd">    - Bidirectional X-dropoff extension</span>
+<span class="sd">    - Ungapped extension (simplified BLAST)</span>
+<span class="sd">    - Support for both same-strand and reverse-complement extensions</span>
+<span class="sd">    - Scoring with match/mismatch matrices</span>
+<span class="sd">    - Extension statistics and quality tracking</span>
+<span class="sd">    - Parallel extension support for multiple seeds</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.index</span><span class="w"> </span><span class="kn">import</span> <span class="n">reverse_complement</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlignmentConfig</span><span class="p">,</span> <span class="n">Hit</span><span class="p">,</span> <span class="n">SequenceRecord</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">Seed</span><span class="p">,</span> <span class="n">SeedCluster</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Extension Data Structures</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="ExtensionResult">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ExtensionResult">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ExtensionResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a seed extension operation.</span>
+
+<span class="sd">    This class stores the complete information about an extended alignment,</span>
+<span class="sd">    including the aligned sequences, scores, and coordinates.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        query_id: Query sequence identifier.</span>
+<span class="sd">        subject_id: Subject sequence identifier.</span>
+<span class="sd">        query_start: Start position in query (0-based, inclusive).</span>
+<span class="sd">        query_end: End position in query (0-based, exclusive).</span>
+<span class="sd">        subject_start: Start position in subject (0-based, inclusive).</span>
+<span class="sd">        subject_end: End position in subject (0-based, exclusive).</span>
+<span class="sd">        score: Total alignment score.</span>
+<span class="sd">        identity: Number of identical matches.</span>
+<span class="sd">        mismatches: Number of mismatches.</span>
+<span class="sd">        alignment_length: Total alignment length.</span>
+<span class="sd">        query_alignment: Aligned query sequence (with gaps).</span>
+<span class="sd">        subject_alignment: Aligned subject sequence (with gaps).</span>
+<span class="sd">        strand: &#39;+&#39; for same strand, &#39;-&#39; for reverse complement.</span>
+<span class="sd">        seed_origin: The seed that initiated this extension.</span>
+<span class="sd">        max_score_during_extension: Peak score during extension.</span>
+<span class="sd">        extension_steps: Number of steps taken during extension.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; result = ExtensionResult(&quot;Q1&quot;, &quot;S1&quot;, 10, 50, 100, 140)</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Score: {result.score}, Identity: {result.identity}/{result.alignment_length}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">subject_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">query_start</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">query_end</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">subject_start</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">subject_end</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">identity</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">mismatches</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">alignment_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">query_alignment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">subject_alignment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">strand</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;+&quot;</span>
+    <span class="n">seed_origin</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Seed</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">max_score_during_extension</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">extension_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate derived statistics.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">identity_percent</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate identity percentage.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identity</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">query_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the query sequence without gaps.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_alignment</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">subject_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the subject sequence without gaps.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_alignment</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ExtensionResult.to_hit">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ExtensionResult.to_hit">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_hit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Hit</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert extension result to a Hit object for output.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Hit</span><span class="p">(</span>
+            <span class="n">query_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="n">subject_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="n">score</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span>
+            <span class="n">identity_percent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">identity_percent</span><span class="p">,</span>
+            <span class="n">alignment_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">,</span>
+            <span class="n">query_start</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">query_start</span><span class="p">,</span>
+            <span class="n">query_end</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">query_end</span><span class="p">,</span>
+            <span class="n">subject_start</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_start</span><span class="p">,</span>
+            <span class="n">subject_end</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_end</span><span class="p">,</span>
+            <span class="n">query_alignment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">,</span>
+            <span class="n">subject_alignment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ExtensionResult(query=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">query_id</span><span class="si">}</span><span class="s2">&#39;, subject=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;score=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="si">}</span><span class="s2">, identity=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">identity_percent</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;len=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">alignment_length</span><span class="si">}</span><span class="s2">, strand=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">strand</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;ExtensionResult&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sort by score descending.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">&gt;</span> <span class="n">other</span><span class="o">.</span><span class="n">score</span></div>
+
+
+
+<div class="viewcode-block" id="ExtensionStats">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ExtensionStats">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ExtensionStats</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics about the extension process.</span>
+
+<span class="sd">    Tracks performance and quality metrics for extension operations.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        total_extensions: Number of extension attempts.</span>
+<span class="sd">        successful_extensions: Number of successful extensions.</span>
+<span class="sd">        failed_extensions: Number of failed extensions.</span>
+<span class="sd">        total_extension_steps: Total steps across all extensions.</span>
+<span class="sd">        average_extension_length: Average length of successful extensions.</span>
+<span class="sd">        max_extension_length: Maximum extension length achieved.</span>
+<span class="sd">        min_score: Minimum score achieved.</span>
+<span class="sd">        max_score: Maximum score achieved.</span>
+<span class="sd">        total_time_ms: Total time spent in milliseconds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">total_extensions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">successful_extensions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">failed_extensions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_extension_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">average_extension_length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">max_extension_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">min_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+<div class="viewcode-block" id="ExtensionStats.record_extension">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ExtensionStats.record_extension">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_extension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">ExtensionResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Record a single extension result.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_extensions</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">successful_extensions</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">total_extension_steps</span> <span class="o">+=</span> <span class="n">result</span><span class="o">.</span><span class="n">extension_steps</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">average_extension_length</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">average_extension_length</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">successful_extensions</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span>
+                 <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">successful_extensions</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_extension_length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">max_extension_length</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">min_score</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">min_score</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_score</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_score</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_score</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">failed_extensions</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_extensions</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;ExtensionStats(no extensions)&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ExtensionStats(extensions=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">total_extensions</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;success=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">successful_extensions</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;avg_len=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">average_extension_length</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;max_score=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_score</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Core Extension Algorithms</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="SeedExtender">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedExtender">[文档]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SeedExtender</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extends seeds to generate high-scoring segment pairs (HSPs).</span>
+
+<span class="sd">    This class implements the X-dropoff extension algorithm for both</span>
+<span class="sd">    same-strand and reverse-complement alignments.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        config: Alignment configuration parameters.</span>
+<span class="sd">        match_score: Score for matching nucleotides.</span>
+<span class="sd">        mismatch_penalty: Penalty for mismatching nucleotides.</span>
+<span class="sd">        x_dropoff: X-dropoff threshold for extension termination.</span>
+<span class="sd">        gap_open_penalty: Penalty for opening a gap (for future gapped extension).</span>
+<span class="sd">        gap_extend_penalty: Penalty for extending a gap (for future gapped extension).</span>
+<span class="sd">        min_extension_score: Minimum score for a valid extension.</span>
+<span class="sd">        stats: Extension statistics tracker.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from blastmini.index import build_index_from_fasta</span>
+<span class="sd">        &gt;&gt;&gt; from blastmini.seeding import SeedFinder</span>
+<span class="sd">        &gt;&gt;&gt; idx = build_index_from_fasta(&quot;database.fa&quot;, k=11)</span>
+<span class="sd">        &gt;&gt;&gt; finder = SeedFinder(idx)</span>
+<span class="sd">        &gt;&gt;&gt; extender = SeedExtender()</span>
+<span class="sd">        &gt;&gt;&gt; query = SequenceRecord(&quot;Q1&quot;, &quot;ATCGATCGATCG&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; seeds = finder.find_seeds(query)</span>
+<span class="sd">        &gt;&gt;&gt; results = extender.extend_seeds(query, seeds)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlignmentConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">min_extension_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="n">track_stats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the seed extender.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Alignment configuration (uses defaults if None).</span>
+<span class="sd">            min_extension_score: Minimum score for a valid extension.</span>
+<span class="sd">            track_stats: Whether to track extension statistics.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">AlignmentConfig</span><span class="p">()</span>
+
+        <span class="c1"># Scoring parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">match_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">match_score</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mismatch_penalty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">mismatch_penalty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x_dropoff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">x_dropoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gap_open_penalty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">gap_open_penalty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gap_extend_penalty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">gap_extend_penalty</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_extension_score</span> <span class="o">=</span> <span class="n">min_extension_score</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">track_stats</span> <span class="o">=</span> <span class="n">track_stats</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stats</span> <span class="o">=</span> <span class="n">ExtensionStats</span><span class="p">()</span> <span class="k">if</span> <span class="n">track_stats</span> <span class="k">else</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="SeedExtender.extend_seed">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedExtender.extend_seed">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extend_seed</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">seed</span><span class="p">:</span> <span class="n">Seed</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ExtensionResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extend a single seed bidirectionally.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            seed: Seed to extend.</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ExtensionResult if successful, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get query sequence</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">):</span>
+            <span class="n">query_id</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">id</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">sequence</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">query_id</span> <span class="o">=</span> <span class="s2">&quot;query&quot;</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="c1"># Get subject sequence</span>
+        <span class="n">subject_seq</span> <span class="o">=</span> <span class="n">subject_sequences</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">subject_seq</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Handle reverse complement if needed</span>
+        <span class="k">if</span> <span class="n">seed</span><span class="o">.</span><span class="n">strand</span> <span class="o">==</span> <span class="s2">&quot;-&quot;</span><span class="p">:</span>
+            <span class="n">subject_seq</span> <span class="o">=</span> <span class="n">reverse_complement</span><span class="p">(</span><span class="n">subject_seq</span><span class="p">)</span>
+            <span class="c1"># Adjust position for reverse complement</span>
+            <span class="n">subject_pos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_seq</span><span class="p">)</span> <span class="o">-</span> <span class="n">seed</span><span class="o">.</span><span class="n">subject_pos</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">subject_pos</span> <span class="o">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">subject_pos</span>
+
+        <span class="c1"># Extend bidirectionally</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extend_bidirectional</span><span class="p">(</span>
+            <span class="n">query_seq</span><span class="o">=</span><span class="n">query_seq</span><span class="p">,</span>
+            <span class="n">subject_seq</span><span class="o">=</span><span class="n">subject_seq</span><span class="p">,</span>
+            <span class="n">query_pos</span><span class="o">=</span><span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span><span class="p">,</span>
+            <span class="n">subject_pos</span><span class="o">=</span><span class="n">subject_pos</span><span class="p">,</span>
+            <span class="n">query_id</span><span class="o">=</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="n">subject_id</span><span class="o">=</span><span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="n">strand</span><span class="o">=</span><span class="n">seed</span><span class="o">.</span><span class="n">strand</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">result</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">track_stats</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">record_extension</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="SeedExtender.extend_seeds">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedExtender.extend_seeds">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extend_seeds</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">],</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">max_results</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ExtensionResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extend multiple seeds and return the best results.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            seeds: List of seeds to extend.</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+<span class="sd">            max_results: Maximum number of results to return.</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of ExtensionResult objects sorted by score.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ExtensionResult</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># subject_id, q_start, q_end, s_start, s_end</span>
+        <span class="n">seen_pairs</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c1"># Get query sequence</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">SequenceRecord</span><span class="p">):</span>
+            <span class="n">query</span><span class="o">.</span><span class="n">sequence</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="c1"># Filter seeds by quality</span>
+        <span class="n">filtered_seeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_seeds</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span>
+
+        <span class="n">total_seeds</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">filtered_seeds</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">total_seeds</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extending </span><span class="si">{</span><span class="n">total_seeds</span><span class="si">}</span><span class="s2"> seeds...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">filtered_seeds</span><span class="p">):</span>
+            <span class="c1"># Extend the seed</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extend_seed</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">subject_sequences</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">result</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_extension_score</span><span class="p">:</span>
+                <span class="c1"># Avoid duplicate alignments</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">query_start</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">query_end</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">subject_start</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">subject_end</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_pairs</span><span class="p">:</span>
+                    <span class="n">seen_pairs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+            <span class="c1"># Progress update</span>
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">total_seeds</span> <span class="o">&gt;</span> <span class="mi">100</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Extended </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_seeds</span><span class="si">}</span><span class="s2"> seeds, found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2"> HSPs&quot;</span><span class="p">,</span>
+                      <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="c1"># Sort by score descending</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">max_results</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_results</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="p">[:</span><span class="n">max_results</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">total_seeds</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Done: found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2"> HSPs&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+<div class="viewcode-block" id="SeedExtender.extend_clusters">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedExtender.extend_clusters">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extend_clusters</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">clusters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SeedCluster</span><span class="p">],</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">max_results</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ExtensionResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extend seed clusters and return the best results.</span>
+
+<span class="sd">        This method extends seeds from clusters, giving priority to</span>
+<span class="sd">        clusters with more seeds (higher confidence).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            clusters: List of SeedCluster objects.</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+<span class="sd">            max_results: Maximum number of results to return.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of ExtensionResult objects sorted by score.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">clusters</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ExtensionResult</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">seen_pairs</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c1"># Sort clusters by size (largest first)</span>
+        <span class="n">sorted_clusters</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">clusters</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="n">sorted_clusters</span><span class="p">:</span>
+            <span class="c1"># Try best seed from cluster</span>
+            <span class="n">best_seed</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">max_score_seed</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">best_seed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extend_seed</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">best_seed</span><span class="p">,</span> <span class="n">subject_sequences</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">result</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_extension_score</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">query_start</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">query_end</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">subject_start</span><span class="p">,</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">subject_end</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_pairs</span><span class="p">:</span>
+                    <span class="n">seen_pairs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+            <span class="c1"># If we have enough results, stop</span>
+            <span class="k">if</span> <span class="n">max_results</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_results</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="c1"># Sort by score descending</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">max_results</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_results</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="p">[:</span><span class="n">max_results</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_extend_bidirectional</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query_seq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">subject_seq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">query_pos</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">subject_pos</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">query_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">subject_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">strand</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;+&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ExtensionResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extend a seed bidirectionally using X-dropoff algorithm.</span>
+
+<span class="sd">        This is the core extension algorithm that extends the seed</span>
+<span class="sd">        to the left and right simultaneously.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query_seq: Full query sequence.</span>
+<span class="sd">            subject_seq: Full subject sequence.</span>
+<span class="sd">            query_pos: Position in query sequence.</span>
+<span class="sd">            subject_pos: Position in subject sequence.</span>
+<span class="sd">            query_id: Query identifier.</span>
+<span class="sd">            subject_id: Subject identifier.</span>
+<span class="sd">            strand: Strand orientation.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ExtensionResult or None if extension failed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Initial seed score (all match)</span>
+        <span class="n">total_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_score</span> <span class="o">*</span> <span class="mi">1</span>  <span class="c1"># k-mer length is just the seed</span>
+
+        <span class="c1"># Initialize alignment with seed</span>
+        <span class="n">query_start</span> <span class="o">=</span> <span class="n">query_pos</span>
+        <span class="n">query_end</span> <span class="o">=</span> <span class="n">query_pos</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">subject_start</span> <span class="o">=</span> <span class="n">subject_pos</span>
+        <span class="n">subject_end</span> <span class="o">=</span> <span class="n">subject_pos</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># For tracking max score during extension</span>
+        <span class="n">max_score</span> <span class="o">=</span> <span class="n">total_score</span>
+
+        <span class="c1"># Store alignment characters (for visualization)</span>
+        <span class="n">query_chars</span> <span class="o">=</span> <span class="p">[</span><span class="n">query_seq</span><span class="p">[</span><span class="n">query_pos</span><span class="p">]]</span>
+        <span class="n">subject_chars</span> <span class="o">=</span> <span class="p">[</span><span class="n">subject_seq</span><span class="p">[</span><span class="n">subject_pos</span><span class="p">]]</span>
+
+        <span class="c1"># Extension steps</span>
+        <span class="n">extension_steps</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Extend to the right</span>
+        <span class="n">right_query</span> <span class="o">=</span> <span class="n">query_pos</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">right_subject</span> <span class="o">=</span> <span class="n">subject_pos</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">right_score</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">max_right_score</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">while</span> <span class="p">(</span><span class="n">right_query</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_seq</span><span class="p">)</span> <span class="ow">and</span>
+               <span class="n">right_subject</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_seq</span><span class="p">)</span> <span class="ow">and</span>
+               <span class="n">right_score</span> <span class="o">-</span> <span class="n">max_right_score</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">x_dropoff</span><span class="p">):</span>
+
+            <span class="n">q_char</span> <span class="o">=</span> <span class="n">query_seq</span><span class="p">[</span><span class="n">right_query</span><span class="p">]</span>
+            <span class="n">s_char</span> <span class="o">=</span> <span class="n">subject_seq</span><span class="p">[</span><span class="n">right_subject</span><span class="p">]</span>
+
+            <span class="c1"># Score the current position</span>
+            <span class="k">if</span> <span class="n">q_char</span> <span class="o">==</span> <span class="n">s_char</span><span class="p">:</span>
+                <span class="n">pos_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_score</span>
+                <span class="n">right_score</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_score</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pos_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mismatch_penalty</span>
+                <span class="n">right_score</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mismatch_penalty</span>
+
+            <span class="c1"># Update max score for X-dropoff</span>
+            <span class="k">if</span> <span class="n">right_score</span> <span class="o">&gt;</span> <span class="n">max_right_score</span><span class="p">:</span>
+                <span class="n">max_right_score</span> <span class="o">=</span> <span class="n">right_score</span>
+
+            <span class="c1"># Check if we should extend</span>
+            <span class="k">if</span> <span class="n">right_score</span> <span class="o">-</span> <span class="n">max_right_score</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">x_dropoff</span><span class="p">:</span>
+                <span class="n">query_chars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q_char</span><span class="p">)</span>
+                <span class="n">subject_chars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s_char</span><span class="p">)</span>
+                <span class="n">total_score</span> <span class="o">+=</span> <span class="n">pos_score</span>
+                <span class="n">extension_steps</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="c1"># Update max score tracking</span>
+                <span class="k">if</span> <span class="n">total_score</span> <span class="o">&gt;</span> <span class="n">max_score</span><span class="p">:</span>
+                    <span class="n">max_score</span> <span class="o">=</span> <span class="n">total_score</span>
+
+                <span class="n">right_query</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">right_subject</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="c1"># Extend to the left</span>
+        <span class="n">left_query</span> <span class="o">=</span> <span class="n">query_pos</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">left_subject</span> <span class="o">=</span> <span class="n">subject_pos</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">left_score</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">max_left_score</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">left_chars</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">left_subject_chars</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">while</span> <span class="p">(</span><span class="n">left_query</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span>
+               <span class="n">left_subject</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span>
+               <span class="n">left_score</span> <span class="o">-</span> <span class="n">max_left_score</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">x_dropoff</span><span class="p">):</span>
+
+            <span class="n">q_char</span> <span class="o">=</span> <span class="n">query_seq</span><span class="p">[</span><span class="n">left_query</span><span class="p">]</span>
+            <span class="n">s_char</span> <span class="o">=</span> <span class="n">subject_seq</span><span class="p">[</span><span class="n">left_subject</span><span class="p">]</span>
+
+            <span class="c1"># Score the current position</span>
+            <span class="k">if</span> <span class="n">q_char</span> <span class="o">==</span> <span class="n">s_char</span><span class="p">:</span>
+                <span class="n">pos_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_score</span>
+                <span class="n">left_score</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_score</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pos_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mismatch_penalty</span>
+                <span class="n">left_score</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mismatch_penalty</span>
+
+            <span class="c1"># Update max score for X-dropoff</span>
+            <span class="k">if</span> <span class="n">left_score</span> <span class="o">&gt;</span> <span class="n">max_left_score</span><span class="p">:</span>
+                <span class="n">max_left_score</span> <span class="o">=</span> <span class="n">left_score</span>
+
+            <span class="c1"># Check if we should extend</span>
+            <span class="k">if</span> <span class="n">left_score</span> <span class="o">-</span> <span class="n">max_left_score</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">x_dropoff</span><span class="p">:</span>
+                <span class="n">left_chars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q_char</span><span class="p">)</span>
+                <span class="n">left_subject_chars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s_char</span><span class="p">)</span>
+                <span class="n">total_score</span> <span class="o">+=</span> <span class="n">pos_score</span>
+                <span class="n">extension_steps</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="c1"># Update max score tracking</span>
+                <span class="k">if</span> <span class="n">total_score</span> <span class="o">&gt;</span> <span class="n">max_score</span><span class="p">:</span>
+                    <span class="n">max_score</span> <span class="o">=</span> <span class="n">total_score</span>
+
+                <span class="n">left_query</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">left_subject</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="c1"># Check if extension was successful</span>
+        <span class="k">if</span> <span class="n">extension_steps</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># Need at least some extension</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Build the final alignment</span>
+        <span class="c1"># Left side (reverse order)</span>
+        <span class="n">left_query_aln</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">left_chars</span><span class="p">))</span>
+        <span class="n">left_subject_aln</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">left_subject_chars</span><span class="p">))</span>
+
+        <span class="c1"># Seed (central part)</span>
+        <span class="n">seed_char</span> <span class="o">=</span> <span class="n">query_seq</span><span class="p">[</span><span class="n">query_pos</span><span class="p">]</span>
+        <span class="n">seed_subject_char</span> <span class="o">=</span> <span class="n">subject_seq</span><span class="p">[</span><span class="n">subject_pos</span><span class="p">]</span>
+
+        <span class="c1"># Right side</span>
+        <span class="c1"># Skip the seed char (included in query_chars[0])</span>
+        <span class="n">right_query_aln</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">query_chars</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">right_subject_aln</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">subject_chars</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+
+        <span class="c1"># Complete alignment</span>
+        <span class="n">query_alignment</span> <span class="o">=</span> <span class="n">left_query_aln</span> <span class="o">+</span> <span class="n">seed_char</span> <span class="o">+</span> <span class="n">right_query_aln</span>
+        <span class="n">subject_alignment</span> <span class="o">=</span> <span class="n">left_subject_aln</span> <span class="o">+</span> <span class="n">seed_subject_char</span> <span class="o">+</span> <span class="n">right_subject_aln</span>
+
+        <span class="c1"># Calculate identity and mismatches</span>
+        <span class="n">identity</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">q</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">query_alignment</span><span class="p">,</span>
+                       <span class="n">subject_alignment</span><span class="p">)</span> <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="n">s</span> <span class="ow">and</span> <span class="n">q</span> <span class="o">!=</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span>
+        <span class="n">mismatches</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">q</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">query_alignment</span><span class="p">,</span> <span class="n">subject_alignment</span><span class="p">)</span>
+                         <span class="k">if</span> <span class="n">q</span> <span class="o">!=</span> <span class="s1">&#39;-&#39;</span> <span class="ow">and</span> <span class="n">s</span> <span class="o">!=</span> <span class="s1">&#39;-&#39;</span> <span class="ow">and</span> <span class="n">q</span> <span class="o">!=</span> <span class="n">s</span><span class="p">)</span>
+
+        <span class="c1"># Update coordinates</span>
+        <span class="n">query_start</span> <span class="o">=</span> <span class="n">left_query</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">query_end</span> <span class="o">=</span> <span class="n">right_query</span>
+        <span class="n">subject_start</span> <span class="o">=</span> <span class="n">left_subject</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">subject_end</span> <span class="o">=</span> <span class="n">right_subject</span>
+
+        <span class="c1"># For reverse complement, the subject coordinates need to be adjusted</span>
+        <span class="c1"># Since we already transformed the subject sequence, we need to map back</span>
+        <span class="k">if</span> <span class="n">strand</span> <span class="o">==</span> <span class="s2">&quot;-&quot;</span><span class="p">:</span>
+            <span class="c1"># The subject positions are in the transformed coordinate space</span>
+            <span class="c1"># We need to map them back to the original coordinates</span>
+            <span class="n">subject_start</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_seq</span><span class="p">)</span> <span class="o">-</span> <span class="n">subject_end</span>
+            <span class="n">subject_end</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_seq</span><span class="p">)</span> <span class="o">-</span> <span class="n">subject_start</span>
+
+        <span class="c1"># Create result</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ExtensionResult</span><span class="p">(</span>
+            <span class="n">query_id</span><span class="o">=</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="n">subject_id</span><span class="o">=</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="n">query_start</span><span class="o">=</span><span class="n">query_start</span><span class="p">,</span>
+            <span class="n">query_end</span><span class="o">=</span><span class="n">query_end</span><span class="p">,</span>
+            <span class="n">subject_start</span><span class="o">=</span><span class="n">subject_start</span><span class="p">,</span>
+            <span class="n">subject_end</span><span class="o">=</span><span class="n">subject_end</span><span class="p">,</span>
+            <span class="n">score</span><span class="o">=</span><span class="n">total_score</span><span class="p">,</span>
+            <span class="n">identity</span><span class="o">=</span><span class="n">identity</span><span class="p">,</span>
+            <span class="n">mismatches</span><span class="o">=</span><span class="n">mismatches</span><span class="p">,</span>
+            <span class="n">alignment_length</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">query_alignment</span><span class="p">),</span>
+            <span class="n">query_alignment</span><span class="o">=</span><span class="n">query_alignment</span><span class="p">,</span>
+            <span class="n">subject_alignment</span><span class="o">=</span><span class="n">subject_alignment</span><span class="p">,</span>
+            <span class="n">strand</span><span class="o">=</span><span class="n">strand</span><span class="p">,</span>
+            <span class="n">max_score_during_extension</span><span class="o">=</span><span class="n">max_score</span><span class="p">,</span>
+            <span class="n">extension_steps</span><span class="o">=</span><span class="n">extension_steps</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_filter_seeds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Seed</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter seeds before extension to improve efficiency.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seeds: List of seeds to filter.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Filtered list of seeds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">seeds</span>
+
+        <span class="c1"># Remove duplicate seeds (same query, subject, and positions)</span>
+        <span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">filtered</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span> <span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+                   <span class="n">seed</span><span class="o">.</span><span class="n">query_pos</span><span class="p">,</span> <span class="n">seed</span><span class="o">.</span><span class="n">subject_pos</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="n">filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="c1"># Sort by score descending (higher score first)</span>
+        <span class="n">filtered</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Keep only the best seeds per (query_id, subject_id)</span>
+        <span class="n">best_per_pair</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">filtered</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span> <span class="n">seed</span><span class="o">.</span><span class="n">subject_id</span><span class="p">)</span>
+            <span class="n">best_per_pair</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="c1"># For each pair, keep top 5 seeds</span>
+        <span class="n">final_seeds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">seeds_in_pair</span> <span class="ow">in</span> <span class="n">best_per_pair</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">final_seeds</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">seeds_in_pair</span><span class="p">[:</span><span class="mi">5</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">final_seeds</span>
+
+<div class="viewcode-block" id="SeedExtender.estimate_extension_time">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SeedExtender.estimate_extension_time">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_extension_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_seeds</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate the time needed for extension.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            num_seeds: Number of seeds to extend.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Estimated time in seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Rough estimate: 0.001 seconds per seed extension</span>
+        <span class="k">return</span> <span class="n">num_seeds</span> <span class="o">*</span> <span class="mf">0.001</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Extension Quality Assessment</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="evaluate_extension_result">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.evaluate_extension_result">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">evaluate_extension_result</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">ExtensionResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate the quality of an extension result.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        result: ExtensionResult to evaluate.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary with quality metrics.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;score&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">score</span><span class="p">),</span>
+        <span class="s1">&#39;identity_percent&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">identity_percent</span><span class="p">,</span>
+        <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">),</span>
+        <span class="s1">&#39;score_per_position&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span> <span class="o">/</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;mismatch_rate&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">mismatches</span> <span class="o">/</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;extension_efficiency&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">extension_steps</span> <span class="o">/</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;score_stability&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span> <span class="o">/</span> <span class="n">result</span><span class="o">.</span><span class="n">max_score_during_extension</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">max_score_during_extension</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">else</span> <span class="mi">0</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">metrics</span></div>
+
+
+
+<div class="viewcode-block" id="is_high_quality_extension">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.is_high_quality_extension">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">is_high_quality_extension</span><span class="p">(</span>
+        <span class="n">result</span><span class="p">:</span> <span class="n">ExtensionResult</span><span class="p">,</span>
+        <span class="n">min_score</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">min_identity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">min_length</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if an extension meets quality thresholds.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        result: ExtensionResult to check.</span>
+<span class="sd">        min_score: Minimum score threshold.</span>
+<span class="sd">        min_identity: Minimum identity percentage threshold.</span>
+<span class="sd">        min_length: Minimum alignment length threshold.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        True if the extension meets all thresholds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">min_score</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span> <span class="o">&lt;</span> <span class="n">min_score</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="n">min_identity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">identity_percent</span> <span class="o">&lt;</span> <span class="n">min_identity</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="n">min_length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&lt;</span> <span class="n">min_length</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Line Interface (for testing)</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.main">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple command line interface for testing the extension module.&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Seed extension tool&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--database&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Database FASTA file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-q&quot;</span><span class="p">,</span> <span class="s2">&quot;--query&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Query FASTA file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--kmer&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;k-mer size&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--seed&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of seeds to try&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--dropoff&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;X-dropoff threshold&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="c1"># Build index</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.index</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_index_from_fasta</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_fasta</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">SeedFinder</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Building index...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">build_index_from_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">kmer</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Create seed finder</span>
+    <span class="n">finder</span> <span class="o">=</span> <span class="n">SeedFinder</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+
+    <span class="c1"># Load queries</span>
+    <span class="n">queries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">queries</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No queries found&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Load subject sequences</span>
+    <span class="n">subject_sequences</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">):</span>
+        <span class="n">subject_sequences</span><span class="p">[</span><span class="n">record</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">sequence</span>
+
+    <span class="c1"># Create extender with custom dropoff</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">AlignmentConfig</span><span class="p">(</span><span class="n">x_dropoff</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dropoff</span><span class="p">)</span>
+    <span class="n">extender</span> <span class="o">=</span> <span class="n">SeedExtender</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">track_stats</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2"> queries...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Query: </span><span class="si">{</span><span class="n">query</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Find seeds</span>
+        <span class="n">seeds</span> <span class="o">=</span> <span class="n">finder</span><span class="o">.</span><span class="n">find_best_seeds</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span><span class="si">}</span><span class="s2"> seeds&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  No seeds found&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Extend seeds</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">extender</span><span class="o">.</span><span class="n">extend_seeds</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">seeds</span><span class="p">,</span> <span class="n">subject_sequences</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2"> HSPs&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Show top results</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">[:</span><span class="mi">5</span><span class="p">]):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2"> &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;score=</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">score</span><span class="si">}</span><span class="s2">, identity=</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">identity_percent</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%, &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;len=</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">alignment_length</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">extender</span><span class="o">.</span><span class="n">stats</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Extension Statistics:&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;  Total extensions: </span><span class="si">{</span><span class="n">extender</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_extensions</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;  Successful: </span><span class="si">{</span><span class="n">extender</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">successful_extensions</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;  Average length: </span><span class="si">{</span><span class="n">extender</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">average_extension_length</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Max score: </span><span class="si">{</span><span class="n">extender</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">max_score</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

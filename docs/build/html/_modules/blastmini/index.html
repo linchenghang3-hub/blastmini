@@ -1,0 +1,861 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.index &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.index</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.index 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;k-mer index construction and management for blastmini.</span>
+
+<span class="sd">This module provides hash-based k-mer indexing for nucleotide sequences,</span>
+<span class="sd">which is the foundation of the seed-and-extend search strategy. The index</span>
+<span class="sd">maps each k-mer to all positions where it appears in the database, enabling</span>
+<span class="sd">O(1) lookup during seed search.</span>
+
+<span class="sd">Key features:</span>
+<span class="sd">    - Canonical k-mer handling (considers reverse complement)</span>
+<span class="sd">    - Memory-efficient indexing with position tracking</span>
+<span class="sd">    - Index persistence (save/load JSON)</span>
+<span class="sd">    - Support for multiple sequences in a single index</span>
+<span class="sd">    - k-mer frequency analysis</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_index</span><span class="p">,</span> <span class="n">parse_fasta</span><span class="p">,</span> <span class="n">save_index</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">SequenceRecord</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># DNA Utilities</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="reverse_complement">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.reverse_complement">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">reverse_complement</span><span class="p">(</span><span class="n">seq</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the reverse complement of a DNA sequence.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        seq: DNA sequence string (A, T, C, G, N).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Reverse complement sequence.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; reverse_complement(&quot;ATCG&quot;)</span>
+<span class="sd">        &#39;CGAT&#39;</span>
+<span class="sd">        &gt;&gt;&gt; reverse_complement(&quot;N&quot;)</span>
+<span class="sd">        &#39;N&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">complement_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="s1">&#39;G&#39;</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="s1">&#39;G&#39;</span><span class="p">,</span> <span class="s1">&#39;g&#39;</span><span class="p">:</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="s1">&#39;N&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="s1">&#39;N&#39;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">complement_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">base</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">seq</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="canonical_kmer">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.canonical_kmer">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">canonical_kmer</span><span class="p">(</span><span class="n">kmer</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the canonical representation of a k-mer.</span>
+
+<span class="sd">    The canonical k-mer is the lexicographically smaller of the k-mer</span>
+<span class="sd">    and its reverse complement. This ensures that both strands of DNA</span>
+<span class="sd">    map to the same index key, improving sensitivity.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        kmer: DNA k-mer string.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Canonical k-mer string.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; canonical_kmer(&quot;ATCG&quot;)</span>
+<span class="sd">        &#39;ATCG&#39;</span>
+<span class="sd">        &gt;&gt;&gt; canonical_kmer(&quot;CGAT&quot;)  # reverse complement of ATCG is ATCG</span>
+<span class="sd">        &#39;ATCG&#39;</span>
+<span class="sd">        &gt;&gt;&gt; canonical_kmer(&quot;AAAA&quot;)</span>
+<span class="sd">        &#39;AAAA&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rc</span> <span class="o">=</span> <span class="n">reverse_complement</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">kmer</span> <span class="k">if</span> <span class="n">kmer</span> <span class="o">&lt;=</span> <span class="n">rc</span> <span class="k">else</span> <span class="n">rc</span></div>
+
+
+
+<div class="viewcode-block" id="extract_kmers">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.extract_kmers">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">extract_kmers</span><span class="p">(</span><span class="n">sequence</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract all k-mers from a sequence with their positions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        sequence: DNA sequence string.</span>
+<span class="sd">        k: k-mer length.</span>
+<span class="sd">        canonical: If True, convert to canonical k-mers.</span>
+
+<span class="sd">    Yields:</span>
+<span class="sd">        Tuple of (kmer_string, position) for each k-mer.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; list(extract_kmers(&quot;ATCGATCG&quot;, 3))</span>
+<span class="sd">        [(&#39;ATC&#39;, 0), (&#39;TCG&#39;, 1), (&#39;CGA&#39;, 2), (&#39;GAT&#39;, 3), (&#39;ATC&#39;, 4)]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sequence_upper</span> <span class="o">=</span> <span class="n">sequence</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+    <span class="n">seq_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sequence_upper</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">seq_len</span> <span class="o">-</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">kmer</span> <span class="o">=</span> <span class="n">sequence_upper</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">canonical</span><span class="p">:</span>
+            <span class="n">kmer</span> <span class="o">=</span> <span class="n">canonical_kmer</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="p">(</span><span class="n">kmer</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Index Data Structures</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="IndexStats">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.IndexStats">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">IndexStats</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics about a k-mer index.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        total_kmers: Total number of k-mer occurrences.</span>
+<span class="sd">        unique_kmers: Number of unique k-mers.</span>
+<span class="sd">        total_sequences: Number of sequences in the database.</span>
+<span class="sd">        total_length: Total sequence length.</span>
+<span class="sd">        kmer_size: Size of k-mers used.</span>
+<span class="sd">        memory_estimate_mb: Estimated memory usage in megabytes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">total_kmers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">unique_kmers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_sequences</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">kmer_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">memory_estimate_mb</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;IndexStats(kmers=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">total_kmers</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;unique=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">unique_kmers</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;sequences=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">total_sequences</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;k=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">kmer_size</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;memory=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">memory_estimate_mb</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">MB)&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="KmerIndex">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex">[文档]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">KmerIndex</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Hash-based k-mer index for nucleotide sequences.</span>
+
+<span class="sd">    This class manages the construction, querying, and persistence of</span>
+<span class="sd">    k-mer indices. It supports canonical k-mers for strand-independent</span>
+<span class="sd">    searching and provides statistics for understanding index properties.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        index: Dictionary mapping k-mer string to list of (subject_id, position).</span>
+<span class="sd">        k: k-mer size used for the index.</span>
+<span class="sd">        stats: Index statistics.</span>
+<span class="sd">        subject_ids: List of sequence IDs in the database.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from blastmini.io import parse_fasta</span>
+<span class="sd">        &gt;&gt;&gt; records = list(parse_fasta(&quot;database.fa&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; index = KmerIndex.build(records, k=11)</span>
+<span class="sd">        &gt;&gt;&gt; matches = index.lookup(&quot;ATCGATCGATC&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Found {len(matches)} matches&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize an empty k-mer index.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            k: k-mer size (default 11 for DNA BLAST).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;k must be &gt;= 1, got </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="n">k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stats</span> <span class="o">=</span> <span class="n">IndexStats</span><span class="p">(</span><span class="n">kmer_size</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+
+<div class="viewcode-block" id="KmerIndex.build">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.build">[文档]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="p">,</span>
+            <span class="n">records</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">],</span>
+            <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">min_kmer_occurrences</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">max_kmer_occurrences</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;KmerIndex&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a k-mer index from a list of sequence records.</span>
+
+<span class="sd">        This is the primary factory method for creating indices. It handles</span>
+<span class="sd">        filtering of repetitive k-mers and provides progress feedback.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            records: List of SequenceRecord objects to index.</span>
+<span class="sd">            k: k-mer size.</span>
+<span class="sd">            canonical: Use canonical k-mers (consider reverse complement).</span>
+<span class="sd">            min_kmer_occurrences: Minimum occurrences to keep (filter rare).</span>
+<span class="sd">            max_kmer_occurrences: Maximum occurrences to keep (filter repetitive).</span>
+<span class="sd">            progress: Show progress bar (if tqdm is installed).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            KmerIndex object with populated index.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; from blastmini.models import SequenceRecord</span>
+<span class="sd">            &gt;&gt;&gt; records = [SequenceRecord(&quot;S1&quot;, &quot;ATCGATCG&quot;), SequenceRecord(&quot;S2&quot;, &quot;GATCGATC&quot;)]</span>
+<span class="sd">            &gt;&gt;&gt; idx = KmerIndex.build(records, k=3)</span>
+<span class="sd">            &gt;&gt;&gt; print(idx.lookup(&quot;ATC&quot;))</span>
+<span class="sd">            [(&#39;S1&#39;, 0), (&#39;S1&#39;, 4), (&#39;S2&#39;, 2)]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">index_obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+
+        <span class="c1"># Collect all sequence IDs</span>
+        <span class="n">index_obj</span><span class="o">.</span><span class="n">subject_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">rec</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">rec</span> <span class="ow">in</span> <span class="n">records</span><span class="p">]</span>
+
+        <span class="c1"># Build frequency dictionary first to filter if needed</span>
+        <span class="k">if</span> <span class="n">min_kmer_occurrences</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">max_kmer_occurrences</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">freq</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">rec</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+                <span class="n">seq</span> <span class="o">=</span> <span class="n">rec</span><span class="o">.</span><span class="n">sequence</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">-</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="n">kmer</span> <span class="o">=</span> <span class="n">seq</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">canonical</span><span class="p">:</span>
+                        <span class="n">kmer</span> <span class="o">=</span> <span class="n">canonical_kmer</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+                    <span class="n">freq</span><span class="p">[</span><span class="n">kmer</span><span class="p">]</span> <span class="o">=</span> <span class="n">freq</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">kmer</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="c1"># Build filter set</span>
+            <span class="n">keep_kmers</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">kmer</span> <span class="k">for</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">freq</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;=</span> <span class="n">min_kmer_occurrences</span>
+                <span class="ow">and</span> <span class="p">(</span><span class="n">max_kmer_occurrences</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="n">max_kmer_occurrences</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">keep_kmers</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Build the actual index</span>
+        <span class="n">total_kmers</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">total_length</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">seen_kmers</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c1"># Progress indicator (simple)</span>
+        <span class="n">total_records</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">total_records</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Indexing </span><span class="si">{</span><span class="n">total_records</span><span class="si">}</span><span class="s2"> sequences with k=</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">rec</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+            <span class="n">seq</span> <span class="o">=</span> <span class="n">rec</span><span class="o">.</span><span class="n">sequence</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+            <span class="n">total_length</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">-</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">kmer</span> <span class="o">=</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos</span><span class="p">:</span><span class="n">pos</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">canonical</span><span class="p">:</span>
+                    <span class="n">kmer</span> <span class="o">=</span> <span class="n">canonical_kmer</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+
+                <span class="c1"># Apply occurrence filter</span>
+                <span class="k">if</span> <span class="n">keep_kmers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">kmer</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">keep_kmers</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">index_obj</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">kmer</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">rec</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">pos</span><span class="p">))</span>
+                <span class="n">total_kmers</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">seen_kmers</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;  Processed </span><span class="si">{</span><span class="n">idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_records</span><span class="si">}</span><span class="s2"> sequences...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="c1"># Update statistics</span>
+        <span class="n">index_obj</span><span class="o">.</span><span class="n">stats</span> <span class="o">=</span> <span class="n">IndexStats</span><span class="p">(</span>
+            <span class="n">total_kmers</span><span class="o">=</span><span class="n">total_kmers</span><span class="p">,</span>
+            <span class="n">unique_kmers</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">seen_kmers</span><span class="p">),</span>
+            <span class="n">total_sequences</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">),</span>
+            <span class="n">total_length</span><span class="o">=</span><span class="n">total_length</span><span class="p">,</span>
+            <span class="n">kmer_size</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+            <span class="n">memory_estimate_mb</span><span class="o">=</span><span class="n">index_obj</span><span class="o">.</span><span class="n">_estimate_memory</span><span class="p">()</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Done: </span><span class="si">{</span><span class="n">index_obj</span><span class="o">.</span><span class="n">stats</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">index_obj</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.build_from_fasta">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.build_from_fasta">[文档]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_from_fasta</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="p">,</span>
+            <span class="n">fasta_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">],</span>
+            <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">min_kmer_occurrences</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">max_kmer_occurrences</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_records</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;KmerIndex&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a k-mer index directly from a FASTA file.</span>
+
+<span class="sd">        Convenience method that parses the FASTA file and builds the index</span>
+<span class="sd">        in one step. For large files, this uses streaming but still loads</span>
+<span class="sd">        all records into memory.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fasta_file: Path to FASTA file.</span>
+<span class="sd">            k: k-mer size.</span>
+<span class="sd">            canonical: Use canonical k-mers.</span>
+<span class="sd">            min_kmer_occurrences: Filter rare k-mers.</span>
+<span class="sd">            max_kmer_occurrences: Filter repetitive k-mers.</span>
+<span class="sd">            max_records: Maximum number of records to index (for testing).</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            KmerIndex object.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; idx = KmerIndex.build_from_fasta(&quot;database.fa&quot;, k=11, max_records=100)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">rec</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">fasta_file</span><span class="p">):</span>
+            <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rec</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">max_records</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_records</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">build</span><span class="p">(</span>
+            <span class="n">records</span><span class="o">=</span><span class="n">records</span><span class="p">,</span>
+            <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="o">=</span><span class="n">canonical</span><span class="p">,</span>
+            <span class="n">min_kmer_occurrences</span><span class="o">=</span><span class="n">min_kmer_occurrences</span><span class="p">,</span>
+            <span class="n">max_kmer_occurrences</span><span class="o">=</span><span class="n">max_kmer_occurrences</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="n">progress</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.lookup">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.lookup">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kmer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Look up a k-mer in the index.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kmer: k-mer string to look up.</span>
+<span class="sd">            canonical: If True, lookup the canonical version.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of (subject_id, position) tuples for the k-mer.</span>
+<span class="sd">            Returns empty list if k-mer is not found.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; idx = KmerIndex.build(records, k=3)</span>
+<span class="sd">            &gt;&gt;&gt; idx.lookup(&quot;ATC&quot;)</span>
+<span class="sd">            [(&#39;S1&#39;, 0), (&#39;S1&#39;, 4)]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+            <span class="c1"># If k-mer length doesn&#39;t match, we can still try to lookup</span>
+            <span class="c1"># but this should be handled by the caller</span>
+            <span class="k">pass</span>
+
+        <span class="k">if</span> <span class="n">canonical</span><span class="p">:</span>
+            <span class="n">kmer</span> <span class="o">=</span> <span class="n">canonical_kmer</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">kmer</span><span class="p">,</span> <span class="p">[])</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.lookup_batch">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.lookup_batch">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">lookup_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kmers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Look up multiple k-mers efficiently.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kmers: List of k-mer strings.</span>
+<span class="sd">            canonical: Use canonical k-mers.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary mapping k-mer string to list of matches.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">kmer</span> <span class="ow">in</span> <span class="n">kmers</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">canonical</span><span class="p">:</span>
+                <span class="n">kmer_key</span> <span class="o">=</span> <span class="n">canonical_kmer</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">kmer_key</span> <span class="o">=</span> <span class="n">kmer</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">kmer_key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">kmer_key</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.contains">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.contains">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">contains</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kmer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if a k-mer exists in the index.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kmer: k-mer string.</span>
+<span class="sd">            canonical: Use canonical k-mers.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True if the k-mer is in the index.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">canonical</span><span class="p">:</span>
+            <span class="n">kmer</span> <span class="o">=</span> <span class="n">canonical_kmer</span><span class="p">(</span><span class="n">kmer</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kmer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.get_kmers_with_counts">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.get_kmers_with_counts">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_kmers_with_counts</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">min_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">max_count</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get k-mers with their occurrence counts.</span>
+
+<span class="sd">        Useful for analyzing k-mer distributions and filtering.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            min_count: Minimum count threshold.</span>
+<span class="sd">            max_count: Maximum count threshold.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of (kmer, count) tuples sorted by count descending.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="p">[(</span><span class="n">kmer</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">positions</span><span class="p">))</span>
+                  <span class="k">for</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">positions</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+
+        <span class="c1"># Apply filters</span>
+        <span class="k">if</span> <span class="n">min_count</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">max_count</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">counts</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">(</span><span class="n">kmer</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span> <span class="k">for</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">counts</span>
+                <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;=</span> <span class="n">min_count</span> <span class="ow">and</span> <span class="p">(</span><span class="n">max_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="n">max_count</span><span class="p">)</span>
+            <span class="p">]</span>
+
+        <span class="c1"># Sort by count descending</span>
+        <span class="n">counts</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">counts</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.save">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.save">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save index to JSON file.</span>
+
+<span class="sd">        This is a wrapper around io.save_index that includes metadata.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filepath: Path to output JSON file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Include metadata in the saved index</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;k&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">,</span>
+            <span class="s1">&#39;subject_ids&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">,</span>
+            <span class="s1">&#39;stats&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;total_kmers&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_kmers</span><span class="p">,</span>
+                <span class="s1">&#39;unique_kmers&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">unique_kmers</span><span class="p">,</span>
+                <span class="s1">&#39;total_sequences&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_sequences</span><span class="p">,</span>
+                <span class="s1">&#39;total_length&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Save the actual index</span>
+        <span class="n">save_index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">filepath</span><span class="p">)</span>
+
+        <span class="c1"># Save metadata separately (or append to same file)</span>
+        <span class="n">meta_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.meta&#39;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">meta_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.load">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.load">[文档]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s1">&#39;KmerIndex&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load index from JSON file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filepath: Path to JSON index file.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            KmerIndex object.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            FileNotFoundError: If file doesn&#39;t exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Load the index</span>
+        <span class="n">index_data</span> <span class="o">=</span> <span class="n">load_index</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+
+        <span class="c1"># Load metadata</span>
+        <span class="n">meta_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.meta&#39;</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">meta_file</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">meta_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
+            <span class="n">subject_ids</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;subject_ids&#39;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="n">stats_data</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;stats&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Fallback: try to determine k from first k-mer</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="mi">11</span>
+            <span class="n">subject_ids</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">stats_data</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Create index object</span>
+        <span class="n">index_obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">index_obj</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">index_data</span><span class="p">)</span>
+        <span class="n">index_obj</span><span class="o">.</span><span class="n">subject_ids</span> <span class="o">=</span> <span class="n">subject_ids</span>
+
+        <span class="c1"># Restore stats</span>
+        <span class="n">index_obj</span><span class="o">.</span><span class="n">stats</span> <span class="o">=</span> <span class="n">IndexStats</span><span class="p">(</span>
+            <span class="n">total_kmers</span><span class="o">=</span><span class="n">stats_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;total_kmers&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">unique_kmers</span><span class="o">=</span><span class="n">stats_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;unique_kmers&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">index_data</span><span class="p">)),</span>
+            <span class="n">total_sequences</span><span class="o">=</span><span class="n">stats_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;total_sequences&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">total_length</span><span class="o">=</span><span class="n">stats_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;total_length&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">kmer_size</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+            <span class="n">memory_estimate_mb</span><span class="o">=</span><span class="n">index_obj</span><span class="o">.</span><span class="n">_estimate_memory</span><span class="p">()</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">index_obj</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_estimate_memory</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate memory usage in megabytes.</span>
+
+<span class="sd">        This is a rough estimate based on the number of entries and</span>
+<span class="sd">        typical Python object overhead.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Estimated memory usage in MB.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Rough estimate: each k-mer key ~50 bytes, each position tuple ~56 bytes</span>
+        <span class="n">num_positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_kmers</span>
+        <span class="n">num_kmers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">unique_kmers</span>
+
+        <span class="c1"># Key overhead: ~50 bytes each</span>
+        <span class="n">key_memory</span> <span class="o">=</span> <span class="n">num_kmers</span> <span class="o">*</span> <span class="mi">50</span>
+        <span class="c1"># Position overhead: ~56 bytes each</span>
+        <span class="n">pos_memory</span> <span class="o">=</span> <span class="n">num_positions</span> <span class="o">*</span> <span class="mi">56</span>
+        <span class="c1"># List overhead: ~56 bytes per k-mer</span>
+        <span class="n">list_memory</span> <span class="o">=</span> <span class="n">num_kmers</span> <span class="o">*</span> <span class="mi">56</span>
+        <span class="c1"># Dict overhead: ~72 bytes per entry</span>
+        <span class="n">dict_memory</span> <span class="o">=</span> <span class="n">num_kmers</span> <span class="o">*</span> <span class="mi">72</span>
+
+        <span class="n">total_bytes</span> <span class="o">=</span> <span class="n">key_memory</span> <span class="o">+</span> <span class="n">pos_memory</span> <span class="o">+</span> <span class="n">list_memory</span> <span class="o">+</span> <span class="n">dict_memory</span>
+        <span class="k">return</span> <span class="n">total_bytes</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+
+<div class="viewcode-block" id="KmerIndex.prune">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.prune">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">prune</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_occurrences</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;KmerIndex&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove highly repetitive k-mers from the index.</span>
+
+<span class="sd">        This is useful for reducing memory usage and improving search</span>
+<span class="sd">        speed by excluding common repetitive elements.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            max_occurrences: Maximum occurrences to keep.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            New KmerIndex with pruned index.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; idx = KmerIndex.build(records, k=3)</span>
+<span class="sd">            &gt;&gt;&gt; pruned = idx.prune(max_occurrences=10)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_idx</span> <span class="o">=</span> <span class="n">KmerIndex</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">new_idx</span><span class="o">.</span><span class="n">subject_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_ids</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">kept_kmers</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">positions</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">positions</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">max_occurrences</span><span class="p">:</span>
+                <span class="n">new_idx</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">kmer</span><span class="p">]</span> <span class="o">=</span> <span class="n">positions</span>
+                <span class="n">kept_kmers</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Update statistics</span>
+        <span class="n">new_idx</span><span class="o">.</span><span class="n">stats</span> <span class="o">=</span> <span class="n">IndexStats</span><span class="p">(</span>
+            <span class="n">total_kmers</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">positions</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">positions</span> <span class="ow">in</span> <span class="n">new_idx</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span>
+            <span class="n">unique_kmers</span><span class="o">=</span><span class="n">kept_kmers</span><span class="p">,</span>
+            <span class="n">total_sequences</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_sequences</span><span class="p">,</span>
+            <span class="n">total_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="p">,</span>
+            <span class="n">kmer_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">,</span>
+            <span class="n">memory_estimate_mb</span><span class="o">=</span><span class="n">new_idx</span><span class="o">.</span><span class="n">_estimate_memory</span><span class="p">()</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">new_idx</span></div>
+
+
+<div class="viewcode-block" id="KmerIndex.coverage_stats">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.KmerIndex.coverage_stats">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">coverage_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate coverage statistics for the indexed sequences.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary with coverage metrics:</span>
+<span class="sd">            - &#39;mean_coverage&#39;: Average number of k-mers covering each position.</span>
+<span class="sd">            - &#39;coverage_std&#39;: Standard deviation of coverage.</span>
+<span class="sd">            - &#39;zero_coverage_positions&#39;: Number of positions with no coverage.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            This is a simplified estimate and may be slow for large indices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># This is a placeholder - full implementation would require</span>
+        <span class="c1"># loading sequences to calculate true coverage</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;mean_coverage&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_kmers</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;coverage_std&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s1">&#39;zero_coverage_positions&#39;</span><span class="p">:</span> <span class="mi">0</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Convenience Functions</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="build_index_from_fasta">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.build_index_from_fasta">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_index_from_fasta</span><span class="p">(</span>
+        <span class="n">fasta_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">],</span>
+        <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
+        <span class="n">canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">min_occurrences</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">max_occurrences</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">output_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">KmerIndex</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a k-mer index from a FASTA file.</span>
+
+<span class="sd">    This is a high-level convenience function that handles the complete</span>
+<span class="sd">    index building workflow from a FASTA file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        fasta_file: Path to FASTA file.</span>
+<span class="sd">        k: k-mer size.</span>
+<span class="sd">        canonical: Use canonical k-mers.</span>
+<span class="sd">        min_occurrences: Minimum occurrences to keep.</span>
+<span class="sd">        max_occurrences: Maximum occurrences to keep (prune repetitive).</span>
+<span class="sd">        output_file: If provided, save index to this file.</span>
+<span class="sd">        progress: Show progress feedback.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        KmerIndex object.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; idx = build_index_from_fasta(&quot;database.fa&quot;, k=11, output_file=&quot;index.json&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Building index from </span><span class="si">{</span><span class="n">fasta_file</span><span class="si">}</span><span class="s2"> with k=</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">KmerIndex</span><span class="o">.</span><span class="n">build_from_fasta</span><span class="p">(</span>
+        <span class="n">fasta_file</span><span class="o">=</span><span class="n">fasta_file</span><span class="p">,</span>
+        <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+        <span class="n">canonical</span><span class="o">=</span><span class="n">canonical</span><span class="p">,</span>
+        <span class="n">min_kmer_occurrences</span><span class="o">=</span><span class="n">min_occurrences</span><span class="p">,</span>
+        <span class="n">max_kmer_occurrences</span><span class="o">=</span><span class="n">max_occurrences</span><span class="p">,</span>
+        <span class="n">progress</span><span class="o">=</span><span class="n">progress</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">output_file</span><span class="p">:</span>
+        <span class="n">idx</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index saved to </span><span class="si">{</span><span class="n">output_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">idx</span></div>
+
+
+
+<div class="viewcode-block" id="load_index_from_file">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.load_index_from_file">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_index_from_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">KmerIndex</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a k-mer index from a file.</span>
+
+<span class="sd">    Wrapper around KmerIndex.load.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filepath: Path to index file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        KmerIndex object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">KmerIndex</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Line Interface (for testing)</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.main">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple command line interface for testing the index module.</span>
+
+<span class="sd">    This allows building and inspecting indices from the command line.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;k-mer index construction tool&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;build&quot;</span><span class="p">,</span> <span class="s2">&quot;stats&quot;</span><span class="p">,</span> <span class="s2">&quot;lookup&quot;</span><span class="p">],</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Action to perform&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--fasta&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input FASTA file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--index&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Index file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--kmer&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                        <span class="n">default</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;k-mer size&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--lookup&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;k-mer to lookup&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--canonical&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Use canonical k-mers&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;build&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">fasta</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: --fasta required for build action&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">build_index_from_fasta</span><span class="p">(</span>
+            <span class="n">fasta_file</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">fasta</span><span class="p">,</span>
+            <span class="n">k</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">kmer</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">canonical</span><span class="p">,</span>
+            <span class="n">output_file</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">output</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index built: </span><span class="si">{</span><span class="n">idx</span><span class="o">.</span><span class="n">stats</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;stats&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: --index required for stats action&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">load_index_from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index stats: </span><span class="si">{</span><span class="n">idx</span><span class="o">.</span><span class="n">stats</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Subject IDs: </span><span class="si">{</span><span class="n">idx</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;lookup&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">index</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">lookup</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: --index and --lookup required for lookup action&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">load_index_from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="n">matches</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">lookup</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">canonical</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span><span class="si">}</span><span class="s2"> matches for &#39;</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">lookup</span><span class="si">}</span><span class="s2">&#39;:&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">subject_id</span><span class="p">,</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">[:</span><span class="mi">10</span><span class="p">]:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">subject_id</span><span class="si">}</span><span class="s2"> at position </span><span class="si">{</span><span class="n">pos</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

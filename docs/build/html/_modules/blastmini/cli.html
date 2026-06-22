@@ -1,0 +1,989 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.cli &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.cli</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.cli 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Command-line interface for blastmini.</span>
+
+<span class="sd">This module provides a unified CLI for all blastmini functionality,</span>
+<span class="sd">including index building, sequence searching, and result formatting.</span>
+
+<span class="sd">Usage:</span>
+<span class="sd">    blastmini build -i database.fa -k 11 -o index.json</span>
+<span class="sd">    blastmini search -q query.fa -d index.json --top 10 -o results.tsv</span>
+<span class="sd">    blastmini stats -i index.json</span>
+<span class="sd">    blastmini view -r results.tsv --format text</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.extension</span><span class="w"> </span><span class="kn">import</span> <span class="n">SeedExtender</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.index</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_index_from_fasta</span><span class="p">,</span> <span class="n">load_index_from_file</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_hits_from_tsv</span><span class="p">,</span> <span class="n">parse_fasta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlignmentConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.scoring</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">HitScorer</span><span class="p">,</span> <span class="n">ScoredHit</span><span class="p">,</span> <span class="n">format_hits_as_bed</span><span class="p">,</span>
+                      <span class="n">format_hits_as_json</span><span class="p">,</span> <span class="n">format_hits_as_text</span><span class="p">,</span>
+                      <span class="n">format_hits_as_tsv</span><span class="p">,</span> <span class="n">visualize_alignment</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">SeedFinder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">SignificanceEstimator</span><span class="p">,</span> <span class="n">format_significance_results</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Utility Functions</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="print_error">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.print_error">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_error</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print error message to stderr.&quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ERROR: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="print_info">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.print_info">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_info</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print info message to stderr.&quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFO: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="print_success">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.print_success">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_success</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print success message to stderr.&quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="format_duration">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.format_duration">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_duration</span><span class="p">(</span><span class="n">seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format duration in human-readable format.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">seconds</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">seconds</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s&quot;</span>
+    <span class="k">elif</span> <span class="n">seconds</span> <span class="o">&lt;</span> <span class="mi">3600</span><span class="p">:</span>
+        <span class="n">minutes</span> <span class="o">=</span> <span class="n">seconds</span> <span class="o">/</span> <span class="mi">60</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">minutes</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">m </span><span class="si">{</span><span class="n">seconds</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">60</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">hours</span> <span class="o">=</span> <span class="n">seconds</span> <span class="o">/</span> <span class="mi">3600</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">hours</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">h&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="validate_fasta_file">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.validate_fasta_file">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_fasta_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate that a FASTA file exists and is readable.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File not found: </span><span class="si">{</span><span class="n">filepath</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Try to parse at least one record</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to parse FASTA file </span><span class="si">{</span><span class="n">filepath</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No sequences found in </span><span class="si">{</span><span class="n">filepath</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Handlers</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="cmd_build">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.cmd_build">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cmd_build</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build k-mer index from FASTA file.&quot;&quot;&quot;</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building index from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  k-mer size: </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">kmer</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Canonical: </span><span class="si">{</span><span class="ow">not</span><span class="w"> </span><span class="n">args</span><span class="o">.</span><span class="n">no_canonical</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">min_occurrences</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">args</span><span class="o">.</span><span class="n">max_occurrences</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">print_info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;  Filter: min=</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">min_occurrences</span><span class="si">}</span><span class="s2">, max=</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">max_occurrences</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;unlimited&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Build index</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">build_index_from_fasta</span><span class="p">(</span>
+            <span class="n">fasta_file</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">,</span>
+            <span class="n">k</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">kmer</span><span class="p">,</span>
+            <span class="n">canonical</span><span class="o">=</span><span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">no_canonical</span><span class="p">,</span>
+            <span class="n">min_occurrences</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">min_occurrences</span><span class="p">,</span>
+            <span class="n">max_occurrences</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">max_occurrences</span><span class="p">,</span>
+            <span class="n">output_file</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Print statistics</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">stats</span>
+        <span class="n">print_success</span><span class="p">(</span><span class="s2">&quot;Index built successfully&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Sequences: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_sequences</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total length: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> bp&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Unique k-mers: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">unique_kmers</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total k-mer positions: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_kmers</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Memory estimate: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">memory_estimate_mb</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> MB&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Time: </span><span class="si">{</span><span class="n">format_duration</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start_time</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to build index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span></div>
+
+
+
+<div class="viewcode-block" id="cmd_search">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.cmd_search">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cmd_search</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Search query sequences against indexed database.&quot;&quot;&quot;</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+    <span class="c1"># Load index</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading index from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">load_index_from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="n">print_info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;  k-mer size: </span><span class="si">{</span><span class="n">idx</span><span class="o">.</span><span class="n">k</span><span class="si">}</span><span class="s2">, sequences: </span><span class="si">{</span><span class="n">idx</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_sequences</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Load queries</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading queries from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">queries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">max_queries</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">max_queries</span><span class="p">:</span>
+            <span class="n">queries</span> <span class="o">=</span> <span class="n">queries</span><span class="p">[:</span><span class="n">args</span><span class="o">.</span><span class="n">max_queries</span><span class="p">]</span>
+            <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Using first </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2"> queries&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load queries: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">queries</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="s2">&quot;No queries found&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2"> query sequences&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Load subject sequences (for extension)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">database_fasta</span><span class="p">:</span>
+        <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading subject sequences from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">database_fasta</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">subject_sequences</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database_fasta</span><span class="p">):</span>
+                <span class="n">subject_sequences</span><span class="p">[</span><span class="n">record</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">sequence</span>
+            <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">subject_sequences</span><span class="p">)</span><span class="si">}</span><span class="s2"> subject sequences&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load subject sequences: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span>
+            <span class="s2">&quot;Database FASTA file required for extension (--database-fasta)&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="c1"># Create configuration</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">AlignmentConfig</span><span class="p">(</span>
+        <span class="n">kmer_size</span><span class="o">=</span><span class="n">idx</span><span class="o">.</span><span class="n">k</span><span class="p">,</span>
+        <span class="n">match_score</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">match_score</span><span class="p">,</span>
+        <span class="n">mismatch_penalty</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">mismatch_penalty</span><span class="p">,</span>
+        <span class="n">x_dropoff</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dropoff</span><span class="p">,</span>
+        <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Create components</span>
+    <span class="n">finder</span> <span class="o">=</span> <span class="n">SeedFinder</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+    <span class="n">extender</span> <span class="o">=</span> <span class="n">SeedExtender</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">min_extension_score</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">min_score</span><span class="p">)</span>
+    <span class="n">scorer</span> <span class="o">=</span> <span class="n">HitScorer</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+        <span class="n">min_score</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">min_score</span><span class="p">,</span>
+        <span class="n">min_identity</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">min_identity</span><span class="p">,</span>
+        <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Process each query</span>
+    <span class="n">all_results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">total_seeds</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_extensions</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">query_idx</span><span class="p">,</span> <span class="n">query</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">queries</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span><span class="p">:</span>
+            <span class="n">print_info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Processing query </span><span class="si">{</span><span class="n">query_idx</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">query</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Find seeds</span>
+        <span class="n">seeds</span> <span class="o">=</span> <span class="n">finder</span><span class="o">.</span><span class="n">find_best_seeds</span><span class="p">(</span>
+            <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+            <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">max_seeds</span><span class="p">,</span>
+            <span class="n">subject_ids</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">subject_sequences</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="p">)</span>
+
+        <span class="n">total_seeds</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span><span class="p">:</span>
+                <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  No seeds found for </span><span class="si">{</span><span class="n">query</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span><span class="p">:</span>
+            <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)</span><span class="si">}</span><span class="s2"> seeds&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Extend seeds</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">extender</span><span class="o">.</span><span class="n">extend_seeds</span><span class="p">(</span>
+            <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+            <span class="n">seeds</span><span class="o">=</span><span class="n">seeds</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="o">=</span><span class="n">subject_sequences</span><span class="p">,</span>
+            <span class="n">max_results</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">max_results</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span>
+        <span class="p">)</span>
+
+        <span class="n">total_extensions</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+        <span class="c1"># Score and rank</span>
+        <span class="n">scored_hits</span> <span class="o">=</span> <span class="n">scorer</span><span class="o">.</span><span class="n">score_hits</span><span class="p">(</span>
+            <span class="n">hits</span><span class="o">=</span><span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">to_hit</span><span class="p">()</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">],</span>
+            <span class="n">query_length</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">),</span>
+            <span class="n">db_total_length</span><span class="o">=</span><span class="n">idx</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+
+        <span class="n">all_results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+
+    <span class="c1"># Sort all results</span>
+    <span class="n">all_results</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">raw_score</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">identity_percent</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Assign global ranks</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">scored</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">all_results</span><span class="p">):</span>
+        <span class="n">scored</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="c1"># Keep top N</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">top</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">:</span>
+        <span class="n">all_results</span> <span class="o">=</span> <span class="n">all_results</span><span class="p">[:</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">]</span>
+
+    <span class="c1"># Output results</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">output_format</span> <span class="o">==</span> <span class="s1">&#39;tsv&#39;</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_tsv</span><span class="p">(</span><span class="n">all_results</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">output_format</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_json</span><span class="p">(</span><span class="n">all_results</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">output_format</span> <span class="o">==</span> <span class="s1">&#39;bed&#39;</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_bed</span><span class="p">(</span><span class="n">all_results</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_text</span><span class="p">(</span><span class="n">all_results</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">print_success</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Results saved to </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Print to stdout</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">output_format</span> <span class="o">==</span> <span class="s1">&#39;tsv&#39;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_hits_as_tsv</span><span class="p">(</span><span class="n">all_results</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">output_format</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_hits_as_json</span><span class="p">(</span><span class="n">all_results</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">output_format</span> <span class="o">==</span> <span class="s1">&#39;bed&#39;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_hits_as_bed</span><span class="p">(</span><span class="n">all_results</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_hits_as_text</span><span class="p">(</span><span class="n">all_results</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">))</span>
+
+    <span class="c1"># Summary</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="s2">&quot;Summary:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Queries processed: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total seeds found: </span><span class="si">{</span><span class="n">total_seeds</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total extensions: </span><span class="si">{</span><span class="n">total_extensions</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Results saved: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_results</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Time: </span><span class="si">{</span><span class="n">format_duration</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start_time</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="cmd_stats">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.cmd_stats">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cmd_stats</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Display index statistics.&quot;&quot;&quot;</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading index from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">load_index_from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">stats</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Index Statistics&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">40</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  k-mer size: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">kmer_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Sequences: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_sequences</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total length: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_length</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> bp&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Unique k-mers: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">unique_kmers</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total positions: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_kmers</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Memory estimate: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">memory_estimate_mb</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> MB&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;  Average positions per k-mer: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_kmers</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">stats</span><span class="o">.</span><span class="n">unique_kmers</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get k-mer frequency distribution</span>
+        <span class="n">kmers_with_counts</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">get_kmers_with_counts</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">kmers_with_counts</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Most frequent k-mers:&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">kmers_with_counts</span><span class="p">[:</span><span class="mi">10</span><span class="p">]:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">kmer</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s2"> occurrences&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="cmd_view">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.cmd_view">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cmd_view</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;View and visualize search results.&quot;&quot;&quot;</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading results from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">results</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="n">load_hits_from_tsv</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">results</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load results: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">hits</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="s2">&quot;No hits found in results file&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits&quot;</span><span class="p">)</span>
+
+    <span class="c1"># 将 Hit 对象转换为 ScoredHit 以便格式化</span>
+    <span class="n">scored_hits</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">hit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">hits</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">scored</span> <span class="o">=</span> <span class="n">ScoredHit</span><span class="p">(</span>
+            <span class="n">hit</span><span class="o">=</span><span class="n">hit</span><span class="p">,</span>
+            <span class="n">raw_score</span><span class="o">=</span><span class="n">hit</span><span class="o">.</span><span class="n">score</span><span class="p">,</span>
+            <span class="n">identity_percent</span><span class="o">=</span><span class="n">hit</span><span class="o">.</span><span class="n">identity_percent</span><span class="p">,</span>
+            <span class="n">coverage_percent</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>          <span class="c1"># 未提供查询长度，设为0</span>
+            <span class="n">bit_score</span><span class="o">=</span><span class="n">hit</span><span class="o">.</span><span class="n">bit_score</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">evalue</span><span class="o">=</span><span class="n">hit</span><span class="o">.</span><span class="n">evalue</span> <span class="ow">or</span> <span class="mf">1.0</span><span class="p">,</span>
+            <span class="n">rank</span><span class="o">=</span><span class="n">i</span>
+        <span class="p">)</span>
+        <span class="n">scored_hits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scored</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_text</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;tsv&#39;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_tsv</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_json</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;bed&#39;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_bed</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_text</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+    <span class="c1"># 如果需要显示比对可视化</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">show_alignment</span> <span class="ow">and</span> <span class="n">scored_hits</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Alignment Visualization (Top Hit)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+
+        <span class="n">top_hit</span> <span class="o">=</span> <span class="n">scored_hits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hit</span>  <span class="c1"># 从 ScoredHit 中提取原始 Hit</span>
+        <span class="k">if</span> <span class="n">top_hit</span><span class="o">.</span><span class="n">query_alignment</span> <span class="ow">and</span> <span class="n">top_hit</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">visualize_alignment</span><span class="p">(</span>
+                <span class="n">top_hit</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">,</span>
+                <span class="n">top_hit</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">,</span>
+                <span class="n">line_width</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">line_width</span>
+            <span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No alignment data available&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="cmd_significance">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.cmd_significance">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cmd_significance</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Estimate statistical significance of hits.&quot;&quot;&quot;</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading results from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">results</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="n">load_hits_from_tsv</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">results</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load results: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">hits</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="s2">&quot;No hits found in results file&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Load database for background estimation</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">:</span>
+        <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading database from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">subject_sequences</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">):</span>
+                <span class="n">subject_sequences</span><span class="p">[</span><span class="n">record</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">sequence</span>
+            <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">subject_sequences</span><span class="p">)</span><span class="si">}</span><span class="s2"> sequences&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load database: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span>
+            <span class="s2">&quot;Database FASTA file required for significance estimation (--database)&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="c1"># Load query</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="p">:</span>
+        <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading query from </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">queries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">queries</span><span class="p">:</span>
+                <span class="n">print_error</span><span class="p">(</span><span class="s2">&quot;No queries found in file&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="mi">1</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">queries</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load query: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">print_error</span><span class="p">(</span><span class="s2">&quot;Query file required for significance estimation (--query)&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="c1"># Calculate database size</span>
+    <span class="n">db_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">subject_sequences</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="c1"># Create estimator</span>
+    <span class="n">estimator</span> <span class="o">=</span> <span class="n">SignificanceEstimator</span><span class="p">(</span>
+        <span class="n">n_permutations</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">permutations</span><span class="p">,</span>
+        <span class="n">random_seed</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+        <span class="n">min_score_threshold</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">min_score</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Estimate background distribution</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span><span class="p">:</span>
+        <span class="n">print_info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Estimating background distribution with </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">permutations</span><span class="si">}</span><span class="s2"> permutations...&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Estimate significance</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span><span class="p">:</span>
+        <span class="n">print_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Estimating significance for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits...&quot;</span><span class="p">)</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">estimate_significance_batch</span><span class="p">(</span>
+        <span class="n">hits</span><span class="o">=</span><span class="n">hits</span><span class="p">,</span>
+        <span class="n">query_length</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">sequence</span><span class="p">),</span>
+        <span class="n">db_size</span><span class="o">=</span><span class="n">db_size</span><span class="p">,</span>
+        <span class="n">use_extreme_distribution</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">use_extreme</span><span class="p">,</span>
+        <span class="n">progress</span><span class="o">=</span><span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">quiet</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Apply multiple testing correction</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">correction</span><span class="p">:</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">adjust_for_multiple_testing</span><span class="p">(</span>
+            <span class="n">results</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">correction</span><span class="p">)</span>
+
+    <span class="c1"># Output results</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_significance_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">print_success</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Significance results saved to </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_significance_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+    <span class="c1"># Summary</span>
+    <span class="n">significant</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">is_significant</span><span class="p">)</span>
+    <span class="n">print_info</span><span class="p">(</span><span class="s2">&quot;Summary:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Hits analyzed: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Significant hits: </span><span class="si">{</span><span class="n">significant</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Time: </span><span class="si">{</span><span class="n">format_duration</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start_time</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="cmd_info">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.cmd_info">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cmd_info</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Display package information.&quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;blastmini v</span><span class="si">{</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;A lightweight BLAST implementation for educational purposes&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Features:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  - k-mer indexing with canonical support&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  - Seed-and-extend search&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  - X-dropoff extension&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  - Statistical significance estimation&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  - Multiple output formats (TSV, JSON, BED)&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Usage:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  blastmini build -i database.fa -o index.json&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  blastmini search -q query.fa -d index.json --database-fasta database.fa&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  blastmini stats -i index.json&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  blastmini view -r results.tsv&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  blastmini significance -r results.tsv -d database.fa -q query.fa&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="mi">0</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Line Parser</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="create_parser">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.create_parser">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_parser</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create the command-line argument parser.&quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">prog</span><span class="o">=</span><span class="s2">&quot;blastmini&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Lightweight BLAST implementation for educational purposes&quot;</span>
+    <span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--version&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show version and exit&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Subparsers for commands</span>
+    <span class="n">subparsers</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">(</span>
+        <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;command&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Command to execute&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ===== build command =====</span>
+    <span class="n">build_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;build&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Build k-mer index from FASTA file&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--input&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input FASTA file&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output index file (JSON)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--kmer&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;k-mer size (default: 11)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--no-canonical&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Disable canonical k-mers (default: enabled)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--min-occurrences&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum occurrences for a k-mer (default: 1)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--max-occurrences&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum occurrences for a k-mer (prune repetitive)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-q&quot;</span><span class="p">,</span> <span class="s2">&quot;--quiet&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Suppress progress messages&quot;</span>
+    <span class="p">)</span>
+    <span class="n">build_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_build</span><span class="p">)</span>
+
+    <span class="c1"># ===== search command =====</span>
+    <span class="n">search_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;search&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Search query sequences against indexed database&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-q&quot;</span><span class="p">,</span> <span class="s2">&quot;--query&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Query FASTA file&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--database&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Index file (JSON)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--database-fasta&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Database FASTA file (for extension)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file (if not specified, prints to stdout)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--kmer&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;k-mer size (overrides index value)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--top&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of top hits to report (default: 10)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--max-seeds&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum seeds per query (default: 50)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--max-results&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum results per query (default: 100)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--max-queries&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum queries to process&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--match-score&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Match score (default: 5)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--mismatch-penalty&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=-</span><span class="mi">4</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Mismatch penalty (default: -4)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--dropoff&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;X-dropoff threshold (default: 5)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--min-score&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum score for a hit (default: 10)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--min-identity&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mf">70.0</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum identity percentage (default: 70.0)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--format&quot;</span><span class="p">,</span>
+        <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;output_format&quot;</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="s2">&quot;tsv&quot;</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="s2">&quot;bed&quot;</span><span class="p">],</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output format (default: text)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--quiet&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Suppress progress messages&quot;</span>
+    <span class="p">)</span>
+    <span class="n">search_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_search</span><span class="p">)</span>
+
+    <span class="c1"># ===== stats command =====</span>
+    <span class="n">stats_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;stats&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Display index statistics&quot;</span>
+    <span class="p">)</span>
+    <span class="n">stats_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--index&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Index file (JSON)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">stats_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-v&quot;</span><span class="p">,</span> <span class="s2">&quot;--verbose&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show detailed statistics&quot;</span>
+    <span class="p">)</span>
+    <span class="n">stats_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_stats</span><span class="p">)</span>
+
+    <span class="c1"># ===== view command =====</span>
+    <span class="n">view_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;view&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;View and visualize search results&quot;</span>
+    <span class="p">)</span>
+    <span class="n">view_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;--results&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Results file (TSV)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">view_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--format&quot;</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="s2">&quot;tsv&quot;</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="s2">&quot;bed&quot;</span><span class="p">],</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output format (default: text)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">view_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--top&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of top hits to show (default: 20)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">view_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--show-alignment&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show alignment visualization&quot;</span>
+    <span class="p">)</span>
+    <span class="n">view_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--line-width&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Alignment line width (default: 60)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">view_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_view</span><span class="p">)</span>
+
+    <span class="c1"># ===== significance command =====</span>
+    <span class="n">significance_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;significance&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Estimate statistical significance of hits&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;--results&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Results file (TSV)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--database&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Database FASTA file&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-q&quot;</span><span class="p">,</span> <span class="s2">&quot;--query&quot;</span><span class="p">,</span>
+        <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Query FASTA file&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-n&quot;</span><span class="p">,</span> <span class="s2">&quot;--permutations&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of permutations (default: 100)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--seed&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Random seed for reproducibility&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--format&quot;</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="s2">&quot;tsv&quot;</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">],</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output format (default: text)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--correction&quot;</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;bonferroni&quot;</span><span class="p">,</span> <span class="s2">&quot;fdr&quot;</span><span class="p">],</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Multiple testing correction method&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--use-extreme&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Use extreme value distribution (faster)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--min-score&quot;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum score threshold (default: 10)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--quiet&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Suppress progress messages&quot;</span>
+    <span class="p">)</span>
+    <span class="n">significance_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_significance</span><span class="p">)</span>
+
+    <span class="c1"># ===== info command =====</span>
+    <span class="n">info_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;info&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Display package information&quot;</span>
+    <span class="p">)</span>
+    <span class="n">info_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_info</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">parser</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Main Entry Point</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.main">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">create_parser</span><span class="p">()</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="c1"># Handle version flag</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">version</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;blastmini </span><span class="si">{</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="c1"># If no command is given, show help</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">command</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">print_help</span><span class="p">()</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="c1"># Execute command</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="s1">&#39;func&#39;</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">args</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Interrupted by user&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">130</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">print_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;cmd_search&#39;</span><span class="p">,</span> <span class="s1">&#39;cmd_significance&#39;</span><span class="p">]:</span>
+                <span class="n">print_info</span><span class="p">(</span>
+                    <span class="s2">&quot;Try running with --quiet to suppress progress messages&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">print_help</span><span class="p">()</span>
+        <span class="k">return</span> <span class="mi">1</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

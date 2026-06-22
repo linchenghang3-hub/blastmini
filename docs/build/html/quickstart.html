@@ -1,0 +1,200 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quickstart &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/translations.js?v=beaddf03"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+    <link rel="next" title="blastmini" href="api/modules.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">准备测试数据</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">构建索引</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">执行搜索</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id4">查看结果</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id5">运行完整工作流（可选）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#python-api">Python API 示例</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Quickstart</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/quickstart.rst.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="quickstart">
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading"></a></h1>
+<p>本文档将带你快速体验 blastmini 的完整工作流：构建索引、搜索序列，并查看结果。</p>
+<section id="id1">
+<h2>准备测试数据<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<p>我们使用大肠杆菌（<em>E. coli</em> K-12）的基因组作为数据库，并随机截取一条短序列作为查询。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 确保项目 data 目录下存在基因组文件</span>
+<span class="c1"># 如果还没有，可以从 NCBI 下载或使用项目中已有的 data/NC_000913.3.fa</span>
+
+<span class="c1"># 查看基因组文件</span>
+head<span class="w"> </span>-n<span class="w"> </span><span class="m">2</span><span class="w"> </span>data/NC_000913.3.fa
+
+<span class="c1"># 手动创建一条简单的查询序列（也可从基因组随机截取）</span>
+<span class="nb">echo</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;&gt;query1\nAGCTTTTCATTCTGACTGCA&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>my_query.fa
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h2>构建索引<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<p>使用 <cite>blastmini build</cite> 命令构建 k-mer 索引。k 值越大，搜索越快，但内存占用也越高。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>blastmini<span class="w"> </span>build<span class="w"> </span>-i<span class="w"> </span>data/NC_000913.3.fa<span class="w"> </span>-o<span class="w"> </span>data/index.json<span class="w"> </span>-k<span class="w"> </span><span class="m">11</span>
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h2>执行搜索<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<p>使用 <cite>blastmini search</cite> 对查询序列进行搜索，输出格式可选 <cite>text</cite>、<cite>tsv</cite>、<cite>json</cite> 或 <cite>bed</cite>。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>blastmini<span class="w"> </span>search<span class="w"> </span>-q<span class="w"> </span>my_query.fa<span class="w"> </span>-d<span class="w"> </span>data/index.json<span class="w"> </span>--database-fasta<span class="w"> </span>data/NC_000913.3.fa<span class="w"> </span>-o<span class="w"> </span>results.tsv<span class="w"> </span>--format<span class="w"> </span>tsv<span class="w"> </span>--top<span class="w"> </span><span class="m">5</span>
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h2>查看结果<a class="headerlink" href="#id4" title="Link to this heading"></a></h2>
+<p>使用 <cite>blastmini view</cite> 查看格式化后的比对结果：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>blastmini<span class="w"> </span>view<span class="w"> </span>-r<span class="w"> </span>results.tsv<span class="w"> </span>--show-alignment
+</pre></div>
+</div>
+<p>你应该会看到类似下面的输出，包含得分、比对长度和一致性百分比：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">================================================================================</span>
+<span class="n">BLAST</span> <span class="n">Search</span> <span class="n">Results</span> <span class="p">(</span><span class="mi">5</span> <span class="n">hits</span> <span class="n">found</span><span class="p">)</span>
+<span class="o">================================================================================</span>
+
+<span class="n">Rank</span><span class="p">:</span> <span class="mi">1</span>
+<span class="n">Subject</span><span class="p">:</span> <span class="n">NC_000913</span><span class="mf">.3</span>
+<span class="n">Score</span><span class="p">:</span> <span class="mi">1000</span> <span class="p">(</span><span class="n">bitscore</span><span class="p">:</span> <span class="mf">144.3</span><span class="p">)</span>
+<span class="n">E</span><span class="o">-</span><span class="n">value</span><span class="p">:</span> <span class="mf">1.00e-250</span>
+<span class="n">Identity</span><span class="p">:</span> <span class="mf">100.0</span><span class="o">%</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+</section>
+<section id="id5">
+<h2>运行完整工作流（可选）<a class="headerlink" href="#id5" title="Link to this heading"></a></h2>
+<p>如果你想一次性完成数据生成、索引构建、搜索和对比，可以直接运行项目自带的 Snakemake 工作流：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>snakemake<span class="w"> </span>-s<span class="w"> </span>workflows/Snakefile<span class="w"> </span>--cores<span class="w"> </span><span class="m">2</span>
+</pre></div>
+</div>
+<p>该流程会：
+1. 从基因组随机截取 50 条查询序列
+2. 分别用 blastmini 和 NCBI BLASTn 进行搜索
+3. 生成对比图表和统计报告</p>
+</section>
+<section id="python-api">
+<h2>Python API 示例<a class="headerlink" href="#python-api" title="Link to this heading"></a></h2>
+<p>如果你更喜欢在 Python 脚本中使用，可以这样调用：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">blastmini.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">BlastMini</span>
+
+<span class="c1"># 加载数据库</span>
+<span class="n">blast</span> <span class="o">=</span> <span class="n">BlastMini</span><span class="o">.</span><span class="n">from_fasta</span><span class="p">(</span><span class="s2">&quot;data/NC_000913.3.fa&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+
+<span class="c1"># 搜索</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">blast</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;AGCTTTTCATTCTGACTGCA&quot;</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+
+<span class="c1"># 打印结果</span>
+<span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">hits</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hit </span><span class="si">{</span><span class="n">hit</span><span class="o">.</span><span class="n">rank</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">hit</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">, score=</span><span class="si">{</span><span class="n">hit</span><span class="o">.</span><span class="n">raw_score</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="页脚">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="api/modules.html" class="btn btn-neutral float-right" title="blastmini" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

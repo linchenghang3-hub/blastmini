@@ -1,0 +1,937 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.scoring &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.scoring</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.scoring 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Scoring and ranking module for blastmini.</span>
+
+<span class="sd">This module provides scoring functions for evaluating alignment quality,</span>
+<span class="sd">ranking hits by significance, calculating identity percentages, and</span>
+<span class="sd">formatting results for output.</span>
+
+<span class="sd">Key features:</span>
+<span class="sd">    - Hit scoring and ranking</span>
+<span class="sd">    - Identity and similarity calculations</span>
+<span class="sd">    - Score normalization (bitscore calculation)</span>
+<span class="sd">    - Statistical score estimation (empirical)</span>
+<span class="sd">    - Hit filtering by score thresholds</span>
+<span class="sd">    - TSV/CSV output formatting</span>
+<span class="sd">    - Alignment visualization</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlignmentConfig</span><span class="p">,</span> <span class="n">Hit</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Scoring Matrices</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Simple nucleotide scoring matrix (match/mismatch)</span>
+<span class="n">NUCLEOTIDE_SCORES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<span class="p">}</span>
+
+<span class="c1"># Alternative scoring matrix (BLASTN default-like)</span>
+<span class="n">BLASTN_SCORES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+    <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<span class="p">}</span>
+
+<span class="c1"># Match/mismatch scoring (simplest)</span>
+<span class="n">MATCH_SCORES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;match&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s1">&#39;mismatch&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="get_nucleotide_score">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.get_nucleotide_score">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_nucleotide_score</span><span class="p">(</span><span class="n">char1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">char2</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">NUCLEOTIDE_SCORES</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get score for a pair of nucleotides.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        char1: First nucleotide character.</span>
+<span class="sd">        char2: Second nucleotide character.</span>
+<span class="sd">        matrix: Scoring matrix to use.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Score for the pair.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; get_nucleotide_score(&#39;A&#39;, &#39;A&#39;)</span>
+<span class="sd">        5</span>
+<span class="sd">        &gt;&gt;&gt; get_nucleotide_score(&#39;A&#39;, &#39;T&#39;)</span>
+<span class="sd">        -4</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">char1_upper</span> <span class="o">=</span> <span class="n">char1</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+    <span class="n">char2_upper</span> <span class="o">=</span> <span class="n">char2</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+
+    <span class="c1"># Handle gaps</span>
+    <span class="k">if</span> <span class="n">char1_upper</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span> <span class="ow">or</span> <span class="n">char2_upper</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="c1"># Default to the matrix</span>
+    <span class="k">if</span> <span class="n">char1_upper</span> <span class="ow">in</span> <span class="n">matrix</span> <span class="ow">and</span> <span class="n">char2_upper</span> <span class="ow">in</span> <span class="n">matrix</span><span class="p">[</span><span class="n">char1_upper</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">matrix</span><span class="p">[</span><span class="n">char1_upper</span><span class="p">][</span><span class="n">char2_upper</span><span class="p">]</span>
+
+    <span class="c1"># Fallback: use match/mismatch</span>
+    <span class="k">if</span> <span class="n">char1_upper</span> <span class="o">==</span> <span class="n">char2_upper</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MATCH_SCORES</span><span class="p">[</span><span class="s1">&#39;match&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MATCH_SCORES</span><span class="p">[</span><span class="s1">&#39;mismatch&#39;</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_alignment_score">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.calculate_alignment_score">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_alignment_score</span><span class="p">(</span>
+        <span class="n">query_alignment</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">subject_alignment</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">matrix</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">NUCLEOTIDE_SCORES</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate score, identity, and mismatches from an alignment.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        query_alignment: Aligned query sequence (may contain gaps).</span>
+<span class="sd">        subject_alignment: Aligned subject sequence (may contain gaps).</span>
+<span class="sd">        matrix: Scoring matrix to use.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple of (score, identity_count, mismatches_count).</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; score, identity, mismatches = calculate_alignment_score(&quot;A-T&quot;, &quot;A-C&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(score, identity, mismatches)</span>
+<span class="sd">        1 1 1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_alignment</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_alignment</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Alignment sequences must have the same length&quot;</span><span class="p">)</span>
+
+    <span class="n">score</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">identity</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">mismatches</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">q_char</span><span class="p">,</span> <span class="n">s_char</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">query_alignment</span><span class="p">,</span> <span class="n">subject_alignment</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">q_char</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span> <span class="ow">or</span> <span class="n">s_char</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span><span class="p">:</span>
+            <span class="c1"># Gaps don&#39;t contribute to score in ungapped extension</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">q_char</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="n">s_char</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span>
+            <span class="n">identity</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">score</span> <span class="o">+=</span> <span class="n">get_nucleotide_score</span><span class="p">(</span><span class="n">q_char</span><span class="p">,</span> <span class="n">s_char</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mismatches</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">score</span> <span class="o">+=</span> <span class="n">get_nucleotide_score</span><span class="p">(</span><span class="n">q_char</span><span class="p">,</span> <span class="n">s_char</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">score</span><span class="p">,</span> <span class="n">identity</span><span class="p">,</span> <span class="n">mismatches</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Hit Scoring and Ranking</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="ScoredHit">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoredHit">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ScoredHit</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A hit with additional scoring information.</span>
+
+<span class="sd">    This extends the basic Hit with scoring metrics for ranking.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        hit: The original Hit object.</span>
+<span class="sd">        raw_score: Raw alignment score.</span>
+<span class="sd">        bit_score: Bit score (normalized).</span>
+<span class="sd">        evalue: E-value (statistical significance).</span>
+<span class="sd">        identity_percent: Percentage of identical characters.</span>
+<span class="sd">        similarity_percent: Percentage of similar characters.</span>
+<span class="sd">        coverage_percent: Percentage of query covered.</span>
+<span class="sd">        rank: Ranking position among hits.</span>
+<span class="sd">        normalized_score: Score normalized by alignment length.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">hit</span><span class="p">:</span> <span class="n">Hit</span>
+    <span class="n">raw_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bit_score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">evalue</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">identity_percent</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">similarity_percent</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">coverage_percent</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">normalized_score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ScoredHit(rank=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rank</span><span class="si">}</span><span class="s2">, subject=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;score=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_score</span><span class="si">}</span><span class="s2">, bitscore=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bit_score</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;evalue=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">evalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">, identity=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">identity_percent</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%)&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ScoredHit.to_dict">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoredHit.to_dict">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to dictionary for JSON output.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;rank&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span><span class="p">,</span>
+            <span class="s1">&#39;query_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="s1">&#39;subject_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="s1">&#39;raw_score&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_score</span><span class="p">,</span>
+            <span class="s1">&#39;bit_score&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bit_score</span><span class="p">,</span>
+            <span class="s1">&#39;evalue&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">evalue</span><span class="p">,</span>
+            <span class="s1">&#39;identity_percent&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">identity_percent</span><span class="p">,</span>
+            <span class="s1">&#39;similarity_percent&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">similarity_percent</span><span class="p">,</span>
+            <span class="s1">&#39;coverage_percent&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">coverage_percent</span><span class="p">,</span>
+            <span class="s1">&#39;alignment_length&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">,</span>
+            <span class="s1">&#39;query_start&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_start</span><span class="p">,</span>
+            <span class="s1">&#39;query_end&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_end</span><span class="p">,</span>
+            <span class="s1">&#39;subject_start&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_start</span><span class="p">,</span>
+            <span class="s1">&#39;subject_end&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_end</span><span class="p">,</span>
+            <span class="s1">&#39;query_alignment&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">,</span>
+            <span class="s1">&#39;subject_alignment&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">,</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="HitScorer">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.HitScorer">[文档]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HitScorer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Score and rank hits from extension results.</span>
+
+<span class="sd">    This class handles the scoring, ranking, and filtering of hits,</span>
+<span class="sd">    including bit score calculation and E-value estimation.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        config: Alignment configuration.</span>
+<span class="sd">        matrix: Scoring matrix to use.</span>
+<span class="sd">        min_score: Minimum score threshold.</span>
+<span class="sd">        min_identity: Minimum identity threshold.</span>
+<span class="sd">        top_n: Number of top hits to keep.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlignmentConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">matrix</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">NUCLEOTIDE_SCORES</span><span class="p">,</span>
+            <span class="n">min_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">min_identity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">top_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the hit scorer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Alignment configuration.</span>
+<span class="sd">            matrix: Scoring matrix to use.</span>
+<span class="sd">            min_score: Minimum score to keep.</span>
+<span class="sd">            min_identity: Minimum identity percentage.</span>
+<span class="sd">            top_n: Number of top hits to keep.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">AlignmentConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matrix</span> <span class="o">=</span> <span class="n">matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_score</span> <span class="o">=</span> <span class="n">min_score</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_identity</span> <span class="o">=</span> <span class="n">min_identity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">top_n</span> <span class="o">=</span> <span class="n">top_n</span>
+
+<div class="viewcode-block" id="HitScorer.score_hit">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.HitScorer.score_hit">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">score_hit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hit</span><span class="p">:</span> <span class="n">Hit</span><span class="p">,</span> <span class="n">query_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ScoredHit</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate all scoring metrics for a single hit.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hit: Hit object to score.</span>
+<span class="sd">            query_length: Length of the query sequence.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ScoredHit with all metrics calculated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Use raw score if available</span>
+        <span class="n">raw_score</span> <span class="o">=</span> <span class="n">hit</span><span class="o">.</span><span class="n">score</span>
+
+        <span class="c1"># Calculate identity percentage</span>
+        <span class="k">if</span> <span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Already a percentage</span>
+            <span class="n">identity_percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">hit</span><span class="o">.</span><span class="n">identity_percent</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span>
+            <span class="c1"># Recalculate if needed</span>
+            <span class="k">if</span> <span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span> <span class="ow">and</span> <span class="n">hit</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">identity_count</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">calculate_alignment_score</span><span class="p">(</span>
+                    <span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">,</span> <span class="n">hit</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix</span>
+                <span class="p">)</span>
+                <span class="n">identity_percent</span> <span class="o">=</span> <span class="n">identity_count</span> <span class="o">/</span> <span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">*</span> <span class="mi">100</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">identity_percent</span> <span class="o">=</span> <span class="n">hit</span><span class="o">.</span><span class="n">identity_percent</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">identity_percent</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="c1"># Calculate coverage</span>
+        <span class="k">if</span> <span class="n">query_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">coverage_percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">/</span> <span class="n">query_length</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coverage_percent</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="c1"># Calculate bit score (simplified)</span>
+        <span class="n">bit_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_bit_score</span><span class="p">(</span><span class="n">raw_score</span><span class="p">)</span>
+
+        <span class="c1"># Calculate normalized score (per base)</span>
+        <span class="n">normalized_score</span> <span class="o">=</span> <span class="n">raw_score</span> <span class="o">/</span> <span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span> <span class="k">if</span> <span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+
+        <span class="c1"># Calculate similarity (simplified - same as identity for ungapped)</span>
+        <span class="n">similarity_percent</span> <span class="o">=</span> <span class="n">identity_percent</span>
+
+        <span class="c1"># Create ScoredHit</span>
+        <span class="n">scored</span> <span class="o">=</span> <span class="n">ScoredHit</span><span class="p">(</span>
+            <span class="n">hit</span><span class="o">=</span><span class="n">hit</span><span class="p">,</span>
+            <span class="n">raw_score</span><span class="o">=</span><span class="n">raw_score</span><span class="p">,</span>
+            <span class="n">bit_score</span><span class="o">=</span><span class="n">bit_score</span><span class="p">,</span>
+            <span class="n">evalue</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>  <span class="c1"># Will be updated separately</span>
+            <span class="n">identity_percent</span><span class="o">=</span><span class="n">identity_percent</span><span class="p">,</span>
+            <span class="n">similarity_percent</span><span class="o">=</span><span class="n">similarity_percent</span><span class="p">,</span>
+            <span class="n">coverage_percent</span><span class="o">=</span><span class="n">coverage_percent</span><span class="p">,</span>
+            <span class="n">normalized_score</span><span class="o">=</span><span class="n">normalized_score</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">scored</span></div>
+
+
+<div class="viewcode-block" id="HitScorer.score_hits">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.HitScorer.score_hits">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">score_hits</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Hit</span><span class="p">],</span>
+            <span class="n">query_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">db_total_length</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Score and rank a list of hits.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hits: List of Hit objects.</span>
+<span class="sd">            query_length: Length of the query sequence.</span>
+<span class="sd">            db_total_length: Total length of the database (for E-value).</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of ScoredHit objects sorted by score.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">hits</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Scoring </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="c1"># Score each hit</span>
+        <span class="n">scored_hits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">hit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">hits</span><span class="p">):</span>
+            <span class="n">scored</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">score_hit</span><span class="p">(</span><span class="n">hit</span><span class="p">,</span> <span class="n">query_length</span><span class="p">)</span>
+            <span class="n">scored_hits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scored</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">50</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Scored </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="c1"># Calculate E-values</span>
+        <span class="k">if</span> <span class="n">db_total_length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">query_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_estimate_evalues</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">,</span> <span class="n">query_length</span><span class="p">,</span> <span class="n">db_total_length</span><span class="p">)</span>
+
+        <span class="c1"># Filter by thresholds</span>
+        <span class="n">filtered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_hits</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+
+        <span class="c1"># Sort and rank</span>
+        <span class="n">filtered</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">raw_score</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">identity_percent</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Assign ranks</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">scored</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">filtered</span><span class="p">):</span>
+            <span class="n">scored</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Keep top N</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">top_n</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">filtered</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">top_n</span><span class="p">:</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="n">filtered</span><span class="p">[:</span><span class="bp">self</span><span class="o">.</span><span class="n">top_n</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Done: kept </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">filtered</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">filtered</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_bit_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_score</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate bit score from raw score.</span>
+
+<span class="sd">        Bit score is a normalized score that allows comparison between</span>
+<span class="sd">        different scoring systems.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            raw_score: Raw alignment score.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Bit score (simplified calculation).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Simplified bit score calculation</span>
+        <span class="c1"># In real BLAST: bit_score = (raw_score * λ) / ln(2)</span>
+        <span class="c1"># where λ is a scaling factor depending on the scoring system</span>
+        <span class="c1"># We use a simple approximation</span>
+
+        <span class="c1"># For our scoring system (match=5, mismatch=-4)</span>
+        <span class="c1"># The expected score per base for random sequences is ~0.5</span>
+        <span class="c1"># λ is approximately 0.1 for this system</span>
+        <span class="n">lambda_value</span> <span class="o">=</span> <span class="mf">0.1</span>
+
+        <span class="k">if</span> <span class="n">raw_score</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">bit_score</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw_score</span> <span class="o">*</span> <span class="n">lambda_value</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bit_score</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="k">return</span> <span class="n">bit_score</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_estimate_evalues</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">scored_hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">],</span>
+            <span class="n">query_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">db_total_length</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate E-values for a list of hits.</span>
+
+<span class="sd">        This is a simplified E-value estimation based on score distribution.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            scored_hits: List of ScoredHit objects (modified in place).</span>
+<span class="sd">            query_length: Length of the query sequence.</span>
+<span class="sd">            db_total_length: Total length of the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">scored_hits</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Extract raw scores</span>
+        <span class="n">raw_scores</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">raw_score</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">]</span>
+        <span class="n">max_score</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">raw_scores</span><span class="p">)</span> <span class="k">if</span> <span class="n">raw_scores</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">min_score</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">raw_scores</span><span class="p">)</span> <span class="k">if</span> <span class="n">raw_scores</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">max_score</span> <span class="o">-</span> <span class="n">min_score</span> <span class="k">if</span> <span class="n">max_score</span> <span class="o">&gt;</span> <span class="n">min_score</span> <span class="k">else</span> <span class="mi">1</span>
+
+        <span class="c1"># Estimate expected score for random alignment</span>
+        <span class="c1"># Using the scoring system properties</span>
+        <span class="n">expected_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_estimate_expected_score</span><span class="p">()</span>
+
+        <span class="c1"># Estimate E-value for each hit</span>
+        <span class="k">for</span> <span class="n">scored</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">:</span>
+            <span class="c1"># Simple heuristic: E-value decreases exponentially with score</span>
+            <span class="n">score_diff</span> <span class="o">=</span> <span class="n">scored</span><span class="o">.</span><span class="n">raw_score</span> <span class="o">-</span> <span class="n">expected_score</span>
+
+            <span class="k">if</span> <span class="n">score_diff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># More significant = smaller E-value</span>
+                <span class="c1"># Use exponential decay based on score difference</span>
+                <span class="n">evalue</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">score_diff</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">)</span>
+
+                <span class="c1"># Adjust for database size and query length</span>
+                <span class="c1"># More database sequences = more chance matches</span>
+                <span class="n">effective_length</span> <span class="o">=</span> <span class="n">db_total_length</span> <span class="o">-</span> \
+                    <span class="p">(</span><span class="n">query_length</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">effective_length</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">effective_length</span> <span class="o">=</span> <span class="n">db_total_length</span>
+
+                <span class="n">evalue</span> <span class="o">=</span> <span class="n">evalue</span> <span class="o">*</span> <span class="p">(</span><span class="n">effective_length</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.01</span>
+
+                <span class="c1"># Cap E-value at 1.0</span>
+                <span class="n">scored</span><span class="o">.</span><span class="n">evalue</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">evalue</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">scored</span><span class="o">.</span><span class="n">evalue</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_estimate_expected_score</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate the expected score for random sequences.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Expected score per alignment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Calculate expected score per base from the scoring matrix</span>
+        <span class="c1"># For nucleotides, assume uniform distribution</span>
+        <span class="n">base_probs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">}</span>
+
+        <span class="n">expected_per_base</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">base1</span><span class="p">,</span> <span class="n">prob1</span> <span class="ow">in</span> <span class="n">base_probs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">base2</span><span class="p">,</span> <span class="n">prob2</span> <span class="ow">in</span> <span class="n">base_probs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">score</span> <span class="o">=</span> <span class="n">get_nucleotide_score</span><span class="p">(</span><span class="n">base1</span><span class="p">,</span> <span class="n">base2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+                <span class="n">expected_per_base</span> <span class="o">+=</span> <span class="n">prob1</span> <span class="o">*</span> <span class="n">prob2</span> <span class="o">*</span> <span class="n">score</span>
+
+        <span class="c1"># For an alignment length of ~100 bases</span>
+        <span class="n">expected_score</span> <span class="o">=</span> <span class="n">expected_per_base</span> <span class="o">*</span> <span class="mi">100</span>
+
+        <span class="k">return</span> <span class="n">expected_score</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_filter_hits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scored_hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter hits by thresholds.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            scored_hits: List of ScoredHit objects.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Filtered list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">filtered</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">scored</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">:</span>
+            <span class="c1"># Check score threshold</span>
+            <span class="k">if</span> <span class="n">scored</span><span class="o">.</span><span class="n">raw_score</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_score</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Check identity threshold</span>
+            <span class="k">if</span> <span class="n">scored</span><span class="o">.</span><span class="n">identity_percent</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_identity</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Check if alignment is valid</span>
+            <span class="k">if</span> <span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>  <span class="c1"># Minimum alignment length</span>
+                <span class="k">continue</span>
+
+            <span class="n">filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scored</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">filtered</span>
+
+<div class="viewcode-block" id="HitScorer.merge_hits">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.HitScorer.merge_hits">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">merge_hits</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Hit</span><span class="p">],</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Hit</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Merge overlapping hits on the same subject.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hits: List of Hit objects.</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of merged Hit objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">hits</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="c1"># Group hits by subject_id</span>
+        <span class="n">by_subject</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Hit</span><span class="p">]]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">hits</span><span class="p">:</span>
+            <span class="n">by_subject</span><span class="p">[</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hit</span><span class="p">)</span>
+
+        <span class="n">merged</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">subject_id</span><span class="p">,</span> <span class="n">subject_hits</span> <span class="ow">in</span> <span class="n">by_subject</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Sort by query_start</span>
+            <span class="n">subject_hits</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">h</span><span class="p">:</span> <span class="n">h</span><span class="o">.</span><span class="n">query_start</span><span class="p">)</span>
+
+            <span class="c1"># Merge overlapping hits</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">subject_hits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">subject_hits</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="c1"># Check if hits overlap or are close on query</span>
+                <span class="k">if</span> <span class="n">hit</span><span class="o">.</span><span class="n">query_start</span> <span class="o">&lt;=</span> <span class="n">current</span><span class="o">.</span><span class="n">query_end</span> <span class="o">+</span> <span class="mi">10</span><span class="p">:</span>
+                    <span class="c1"># Merge: extend the current hit</span>
+                    <span class="n">current</span><span class="o">.</span><span class="n">query_end</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">query_end</span><span class="p">,</span> <span class="n">hit</span><span class="o">.</span><span class="n">query_end</span><span class="p">)</span>
+                    <span class="n">current</span><span class="o">.</span><span class="n">subject_end</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                        <span class="n">current</span><span class="o">.</span><span class="n">subject_end</span><span class="p">,</span> <span class="n">hit</span><span class="o">.</span><span class="n">subject_end</span><span class="p">)</span>
+                    <span class="n">current</span><span class="o">.</span><span class="n">score</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="n">hit</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+                    <span class="n">current</span><span class="o">.</span><span class="n">alignment_length</span> <span class="o">=</span> <span class="n">current</span><span class="o">.</span><span class="n">query_end</span> <span class="o">-</span> <span class="n">current</span><span class="o">.</span><span class="n">query_start</span>
+
+                    <span class="c1"># Combine alignment sequences (simplified)</span>
+                    <span class="k">if</span> <span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">:</span>
+                        <span class="n">current</span><span class="o">.</span><span class="n">query_alignment</span> <span class="o">+=</span> <span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span>
+                    <span class="k">if</span> <span class="n">hit</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">:</span>
+                        <span class="n">current</span><span class="o">.</span><span class="n">subject_alignment</span> <span class="o">+=</span> <span class="n">hit</span><span class="o">.</span><span class="n">subject_alignment</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">merged</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="n">hit</span>
+
+            <span class="n">merged</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">merged</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Output Formatting</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="format_hit_as_text">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.format_hit_as_text">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_hit_as_text</span><span class="p">(</span><span class="n">scored</span><span class="p">:</span> <span class="n">ScoredHit</span><span class="p">,</span> <span class="n">show_alignment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format a scored hit as human-readable text.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        scored: ScoredHit object.</span>
+<span class="sd">        show_alignment: Whether to show the alignment.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Formatted string.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; print(format_hit_as_text(scored))</span>
+<span class="sd">        Rank: 1</span>
+<span class="sd">        Subject: S1</span>
+<span class="sd">        Score: 145 (bitscore: 50.0)</span>
+<span class="sd">        E-value: 1.23e-05</span>
+<span class="sd">        Identity: 98.5%</span>
+<span class="sd">        Alignment: 200/200</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Rank: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">rank</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Subject: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Score: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">raw_score</span><span class="si">}</span><span class="s2"> (bitscore: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">bit_score</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;E-value: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">evalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Identity: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">identity_percent</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Coverage: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">coverage_percent</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Alignment length: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Query region: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Subject region: </span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">show_alignment</span> <span class="ow">and</span> <span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Query:   &quot;</span> <span class="o">+</span> <span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;         &quot;</span> <span class="o">+</span> <span class="s2">&quot;|&quot;</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_alignment</span><span class="p">))</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Subject: &quot;</span> <span class="o">+</span> <span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_alignment</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="format_hits_as_text">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.format_hits_as_text">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_hits_as_text</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">],</span> <span class="n">top_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format multiple hits as human-readable text.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        scored_hits: List of ScoredHit objects.</span>
+<span class="sd">        top_n: Number of top hits to show.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Formatted string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;BLAST Search Results (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits found)&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">scored</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">[:</span><span class="n">top_n</span><span class="p">]:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">format_hit_as_text</span><span class="p">(</span><span class="n">scored</span><span class="p">,</span> <span class="n">show_alignment</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">top_n</span><span class="p">:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;... and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">top_n</span><span class="si">}</span><span class="s2"> more hits&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="format_hits_as_tsv">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.format_hits_as_tsv">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_hits_as_tsv</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format hits as TSV with header matching Hit.tsv_header.</span>
+
+<span class="sd">    The column order is: query_id, subject_id, score, identity_percent,</span>
+<span class="sd">    alignment_length, query_start, query_end, subject_start, subject_end,</span>
+<span class="sd">    evalue, bit_score.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+        <span class="s2">&quot;query_id&quot;</span><span class="p">,</span> <span class="s2">&quot;subject_id&quot;</span><span class="p">,</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span> <span class="s2">&quot;identity_percent&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;alignment_length&quot;</span><span class="p">,</span> <span class="s2">&quot;query_start&quot;</span><span class="p">,</span> <span class="s2">&quot;query_end&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;subject_start&quot;</span><span class="p">,</span> <span class="s2">&quot;subject_end&quot;</span><span class="p">,</span> <span class="s2">&quot;evalue&quot;</span><span class="p">,</span> <span class="s2">&quot;bit_score&quot;</span>
+    <span class="p">])</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">header</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">scored</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">:</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">raw_score</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">identity_percent</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">alignment_length</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_start</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_end</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_start</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_end</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">evalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">scored</span><span class="o">.</span><span class="n">evalue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">bit_score</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">scored</span><span class="o">.</span><span class="n">bit_score</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="p">])</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="format_hits_as_json">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.format_hits_as_json">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_hits_as_json</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format hits as JSON.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        scored_hits: List of ScoredHit objects.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        JSON formatted string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;total_hits&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">),</span>
+        <span class="s2">&quot;hits&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">scored</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">scored</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">]</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="format_hits_as_bed">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.format_hits_as_bed">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_hits_as_bed</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScoredHit</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format hits as BED (Browser Extensible Data) format.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        scored_hits: List of ScoredHit objects.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        BED formatted string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;#track name=blastmini type=bedDetail description=</span><span class="se">\&quot;</span><span class="s2">BLAST hits</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;#chrom</span><span class="se">\t</span><span class="s2">src</span><span class="se">\t</span><span class="s2">start</span><span class="se">\t</span><span class="s2">end</span><span class="se">\t</span><span class="s2">name</span><span class="se">\t</span><span class="s2">score</span><span class="se">\t</span><span class="s2">strand&quot;</span>
+    <span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">scored</span> <span class="ow">in</span> <span class="n">scored_hits</span><span class="p">:</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_start</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_end</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_id</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">scored</span><span class="o">.</span><span class="n">rank</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">scored</span><span class="o">.</span><span class="n">raw_score</span><span class="p">),</span>
+            <span class="s2">&quot;+&quot;</span>
+        <span class="p">])</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Alignment Visualization</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="visualize_alignment">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.visualize_alignment">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">visualize_alignment</span><span class="p">(</span>
+        <span class="n">query_alignment</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">subject_alignment</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">line_width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">show_consensus</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a formatted alignment visualization.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        query_alignment: Aligned query sequence.</span>
+<span class="sd">        subject_alignment: Aligned subject sequence.</span>
+<span class="sd">        line_width: Number of characters per line.</span>
+<span class="sd">        show_consensus: Show consensus line (| for match, . for mismatch).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Formatted alignment string.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; print(visualize_alignment(&quot;ATCGATCG&quot;, &quot;ATCGATCG&quot;))</span>
+<span class="sd">        Query:   ATCGATCG</span>
+<span class="sd">                 ||||||||</span>
+<span class="sd">        Subject: ATCGATCG</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_alignment</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_alignment</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Alignment sequences must have the same length&quot;</span><span class="p">)</span>
+
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">total_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_alignment</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">total_len</span><span class="p">,</span> <span class="n">line_width</span><span class="p">):</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">line_width</span><span class="p">,</span> <span class="n">total_len</span><span class="p">)</span>
+
+        <span class="n">q_seg</span> <span class="o">=</span> <span class="n">query_alignment</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+        <span class="n">s_seg</span> <span class="o">=</span> <span class="n">subject_alignment</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+
+        <span class="c1"># Add sequence lines</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Query:   </span><span class="si">{</span><span class="n">q_seg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Add consensus line</span>
+        <span class="k">if</span> <span class="n">show_consensus</span><span class="p">:</span>
+            <span class="n">consensus</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">q</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">q_seg</span><span class="p">,</span> <span class="n">s_seg</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span> <span class="ow">or</span> <span class="n">s</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span><span class="p">:</span>
+                    <span class="n">consensus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">q</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="n">s</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span>
+                    <span class="n">consensus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;|&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">consensus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;         </span><span class="si">{</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">consensus</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Subject: </span><span class="si">{</span><span class="n">s_seg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Line Interface (for testing)</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.main">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple command line interface for testing scoring.&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Hit scoring tool&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--input&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input hits file (TSV)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--format&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="s2">&quot;tsv&quot;</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="s2">&quot;bed&quot;</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output format&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--top&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of top hits&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="c1"># Load hits</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_hits_from_tsv</span>
+
+    <span class="n">hits</span> <span class="o">=</span> <span class="n">load_hits_from_tsv</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="c1"># Create scorer</span>
+    <span class="n">scorer</span> <span class="o">=</span> <span class="n">HitScorer</span><span class="p">(</span><span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+
+    <span class="c1"># Score hits (assuming query length from data)</span>
+    <span class="n">query_length</span> <span class="o">=</span> <span class="mi">1000</span>  <span class="c1"># Placeholder</span>
+    <span class="n">scored_hits</span> <span class="o">=</span> <span class="n">scorer</span><span class="o">.</span><span class="n">score_hits</span><span class="p">(</span><span class="n">hits</span><span class="p">,</span> <span class="n">query_length</span><span class="p">)</span>
+
+    <span class="c1"># Format output</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_text</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s2">&quot;tsv&quot;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_tsv</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s2">&quot;json&quot;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_json</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s2">&quot;bed&quot;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_bed</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">format_hits_as_text</span><span class="p">(</span><span class="n">scored_hits</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output written to </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

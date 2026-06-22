@@ -1,0 +1,445 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.io &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.io</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.io 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Input/Output operations for blastmini.</span>
+
+<span class="sd">This module provides FASTA file parsing, index persistence, and result</span>
+<span class="sd">output functions. All parsers are implemented from scratch without</span>
+<span class="sd">external dependencies like Biopython.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">gzip</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Hit</span><span class="p">,</span> <span class="n">SequenceRecord</span>
+
+
+<div class="viewcode-block" id="parse_fasta">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.parse_fasta">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_fasta</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse FASTA file and yield SequenceRecord objects.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FASTA file not found: </span><span class="si">{</span><span class="n">filepath</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.gz&#39;</span><span class="p">):</span>
+        <span class="n">open_func</span> <span class="o">=</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">open_func</span> <span class="o">=</span> <span class="nb">open</span>
+
+    <span class="k">with</span> <span class="n">open_func</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;rt&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">handle</span><span class="p">:</span>
+        <span class="k">yield from</span> <span class="n">_parse_fasta_stream</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_parse_fasta_stream</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Internal streaming parser for FASTA format.</span>
+
+<span class="sd">    This function assumes the handle is already open and handles</span>
+<span class="sd">    the parsing logic without closing the handle.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        handle: Open file-like object (text mode).</span>
+
+<span class="sd">    Yields:</span>
+<span class="sd">        SequenceRecord objects.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If a sequence header is found without sequence data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">current_id</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">current_desc</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">current_seq_lines</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">line_num</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\r</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Skip empty lines</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Parse header line</span>
+        <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;&gt;&#39;</span><span class="p">):</span>
+            <span class="c1"># If we were building a record, yield it</span>
+            <span class="k">if</span> <span class="n">current_id</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">current_seq_lines</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Sequence record &#39;</span><span class="si">{</span><span class="n">current_id</span><span class="si">}</span><span class="s2">&#39; has no sequence data (line </span><span class="si">{</span><span class="n">line_num</span><span class="si">}</span><span class="s2">)&quot;</span>
+                    <span class="p">)</span>
+                <span class="k">yield</span> <span class="n">SequenceRecord</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="n">current_id</span><span class="p">,</span>
+                    <span class="n">description</span><span class="o">=</span><span class="n">current_desc</span><span class="p">,</span>
+                    <span class="n">sequence</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">current_seq_lines</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">current_seq_lines</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c1"># Parse new header: ID first token, rest as description</span>
+            <span class="n">header_parts</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">current_id</span> <span class="o">=</span> <span class="n">header_parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">current_desc</span> <span class="o">=</span> <span class="n">header_parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span>
+                <span class="n">header_parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+            <span class="c1"># Basic validation of ID</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">current_id</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Empty sequence ID on line </span><span class="si">{</span><span class="n">line_num</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Parse sequence line (non-header)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Strip whitespace and validate characters</span>
+            <span class="n">seq_line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">seq_line</span><span class="p">:</span>
+                <span class="c1"># Basic validation: allow A-Z, N, and gaps</span>
+                <span class="c1"># Note: More rigorous validation can be done by caller</span>
+                <span class="n">current_seq_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seq_line</span><span class="p">)</span>
+
+    <span class="c1"># Yield the last record</span>
+    <span class="k">if</span> <span class="n">current_id</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">current_seq_lines</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Sequence record &#39;</span><span class="si">{</span><span class="n">current_id</span><span class="si">}</span><span class="s2">&#39; has no sequence data&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">SequenceRecord</span><span class="p">(</span>
+            <span class="nb">id</span><span class="o">=</span><span class="n">current_id</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">current_desc</span><span class="p">,</span>
+            <span class="n">sequence</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">current_seq_lines</span><span class="p">)</span>
+        <span class="p">)</span>
+
+
+<div class="viewcode-block" id="parse_fasta_multi">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.parse_fasta_multi">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_fasta_multi</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">SequenceRecord</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse FASTA file and return all records as a list.</span>
+
+<span class="sd">    Convenience function for small files where streaming isn&#39;t necessary.</span>
+
+<span class="sd">    Warning:</span>
+<span class="sd">        For large files, use parse_fasta() iterator instead to avoid</span>
+<span class="sd">        memory issues.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filepath: Path to FASTA file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of all SequenceRecord objects in the file.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; records = parse_fasta_multi(&quot;small.fa&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(len(records))</span>
+<span class="sd">        5</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">filepath</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="save_hits_to_tsv">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.save_hits_to_tsv">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_hits_to_tsv</span><span class="p">(</span><span class="n">hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Hit</span><span class="p">],</span> <span class="n">output_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save hit list to TSV file with header.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        hits: List of Hit objects.</span>
+<span class="sd">        output_file: Path to output TSV file.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; hits = [Hit(query_id=&quot;Q1&quot;, subject_id=&quot;S1&quot;, score=100)]</span>
+<span class="sd">        &gt;&gt;&gt; save_hits_to_tsv(hits, &quot;results.tsv&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">Hit</span><span class="o">.</span><span class="n">tsv_header</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">hits</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">hit</span><span class="o">.</span><span class="n">to_tsv</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="load_hits_from_tsv">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.load_hits_from_tsv">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_hits_from_tsv</span><span class="p">(</span><span class="n">input_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Hit</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load hits from a TSV file generated by save_hits_to_tsv.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        input_file: Path to TSV file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of Hit objects.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If file format is invalid.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">hits</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">input_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="c1"># Skip header</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">header</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Empty TSV file&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">line_num</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">parts</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Line </span><span class="si">{</span><span class="n">line_num</span><span class="si">}</span><span class="s2">: Expected at least 6 columns, got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">hit</span> <span class="o">=</span> <span class="n">Hit</span><span class="p">(</span>
+                    <span class="n">query_id</span><span class="o">=</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">subject_id</span><span class="o">=</span><span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="n">score</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+                    <span class="n">identity_percent</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span>
+                    <span class="n">alignment_length</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">4</span><span class="p">]),</span>
+                    <span class="n">query_start</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span> <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">query_end</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">6</span><span class="p">])</span> <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">subject_start</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">7</span><span class="p">])</span> <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">subject_end</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">8</span><span class="p">])</span> <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">evalue</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">9</span><span class="p">])</span> <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">bit_score</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">10</span><span class="p">])</span> <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">hits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hit</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Line </span><span class="si">{</span><span class="n">line_num</span><span class="si">}</span><span class="s2">: Invalid format - </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">hits</span></div>
+
+
+
+<div class="viewcode-block" id="save_index">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.save_index">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_index</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">tuple</span><span class="p">]],</span> <span class="n">index_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save k-mer index to JSON file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        index: Dictionary mapping k-mer string to list of (subject_id, position).</span>
+<span class="sd">        index_file: Path to output JSON file.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The index is serialized as JSON where keys are k-mers and values</span>
+<span class="sd">        are lists of [subject_id, position] arrays.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; index = {&quot;ATCG&quot;: [(&quot;S1&quot;, 0), (&quot;S2&quot;, 10)]}</span>
+<span class="sd">        &gt;&gt;&gt; save_index(index, &quot;index.json&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Convert tuples to lists for JSON serialization</span>
+    <span class="n">serializable_index</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">k</span><span class="p">:</span> <span class="p">[[</span><span class="n">sid</span><span class="p">,</span> <span class="n">pos</span><span class="p">]</span> <span class="k">for</span> <span class="n">sid</span><span class="p">,</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">positions</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">positions</span> <span class="ow">in</span> <span class="n">index</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">index_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">serializable_index</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="load_index">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.load_index">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_index</span><span class="p">(</span><span class="n">index_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">tuple</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load k-mer index from JSON file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        index_file: Path to JSON index file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary mapping k-mer string to list of (subject_id, position).</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; index = load_index(&quot;index.json&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(len(index))</span>
+<span class="sd">        12345</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">index_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">loaded</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="c1"># Convert lists back to tuples</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">positions</span> <span class="ow">in</span> <span class="n">loaded</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">index</span><span class="p">[</span><span class="n">kmer</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">sid</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span> <span class="k">for</span> <span class="n">sid</span><span class="p">,</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">positions</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">index</span></div>
+
+
+
+<div class="viewcode-block" id="count_sequences">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.count_sequences">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">count_sequences</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Count number of sequences in a FASTA file.</span>
+
+<span class="sd">    This is a lightweight function that only counts headers without</span>
+<span class="sd">    storing sequence data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filepath: Path to FASTA file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Number of sequences in the file.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; count = count_sequences(&quot;database.fa&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Database contains {count} sequences&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">count</span></div>
+
+
+
+<div class="viewcode-block" id="get_sequence_stats">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.get_sequence_stats">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_sequence_stats</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get summary statistics for a FASTA file.</span>
+
+<span class="sd">    Computes basic statistics including number of sequences, total</span>
+<span class="sd">    length, min/max/mean length, and GC content.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filepath: Path to FASTA file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary with summary statistics.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; stats = get_sequence_stats(&quot;database.fa&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Total length: {stats[&#39;total_length&#39;]}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_seqs</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_length</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">lengths</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">gc_counts</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+        <span class="n">n_seqs</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">seq_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+        <span class="n">total_length</span> <span class="o">+=</span> <span class="n">seq_len</span>
+        <span class="n">lengths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seq_len</span><span class="p">)</span>
+
+        <span class="c1"># Calculate GC content for this sequence</span>
+        <span class="n">seq_upper</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">sequence</span>
+        <span class="n">gc_count</span> <span class="o">=</span> <span class="n">seq_upper</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;G&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">seq_upper</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
+        <span class="n">gc_counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gc_count</span> <span class="o">/</span> <span class="n">seq_len</span> <span class="k">if</span> <span class="n">seq_len</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">n_seqs</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;n_sequences&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;total_length&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;min_length&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;max_length&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;mean_length&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s1">&#39;gc_content&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;n_sequences&#39;</span><span class="p">:</span> <span class="n">n_seqs</span><span class="p">,</span>
+        <span class="s1">&#39;total_length&#39;</span><span class="p">:</span> <span class="n">total_length</span><span class="p">,</span>
+        <span class="s1">&#39;min_length&#39;</span><span class="p">:</span> <span class="nb">min</span><span class="p">(</span><span class="n">lengths</span><span class="p">),</span>
+        <span class="s1">&#39;max_length&#39;</span><span class="p">:</span> <span class="nb">max</span><span class="p">(</span><span class="n">lengths</span><span class="p">),</span>
+        <span class="s1">&#39;mean_length&#39;</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_seqs</span><span class="p">,</span>
+        <span class="s1">&#39;gc_content&#39;</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="n">gc_counts</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_seqs</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

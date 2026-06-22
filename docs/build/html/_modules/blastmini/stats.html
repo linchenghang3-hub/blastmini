@@ -1,0 +1,1013 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>blastmini.stats &mdash; blastmini 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            blastmini
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">快速开始</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API 参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">blastmini</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">blastmini</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">blastmini.stats</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>blastmini.stats 源代码</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Statistical significance estimation for blastmini.</span>
+
+<span class="sd">This module provides statistical significance estimation for sequence</span>
+<span class="sd">alignments, including E-value calculation and p-value estimation.</span>
+<span class="sd">Unlike real BLAST which uses Karlin-Altschul extreme value distribution</span>
+<span class="sd">theory, this implementation uses empirical permutation testing for</span>
+<span class="sd">educational purposes.</span>
+
+<span class="sd">Key features:</span>
+<span class="sd">    - Empirical p-value estimation via sequence permutation</span>
+<span class="sd">    - E-value calculation from empirical distributions</span>
+<span class="sd">    - Score distribution modeling (normal approximation)</span>
+<span class="sd">    - Background score estimation from random sequences</span>
+<span class="sd">    - Statistical significance reporting</span>
+<span class="sd">    - Multiple testing correction (Bonferroni, FDR)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.extension</span><span class="w"> </span><span class="kn">import</span> <span class="n">SeedExtender</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlignmentConfig</span><span class="p">,</span> <span class="n">Hit</span><span class="p">,</span> <span class="n">SequenceRecord</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.scoring</span><span class="w"> </span><span class="kn">import</span> <span class="n">HitScorer</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Statistical Data Structures</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="ScoreDistribution">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoreDistribution">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ScoreDistribution</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Distribution of alignment scores from random sequences.</span>
+
+<span class="sd">    This class stores and analyzes score distributions for estimating</span>
+<span class="sd">    statistical significance.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        scores: List of observed scores.</span>
+<span class="sd">        mean: Mean of the distribution.</span>
+<span class="sd">        std: Standard deviation of the distribution.</span>
+<span class="sd">        min_score: Minimum score observed.</span>
+<span class="sd">        max_score: Maximum score observed.</span>
+<span class="sd">        n_samples: Number of samples in the distribution.</span>
+<span class="sd">        fitted_params: Parameters for fitted distribution.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; dist = ScoreDistribution([10, 15, 12, 18, 11])</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Mean: {dist.mean:.2f}, Std: {dist.std:.2f}&quot;)</span>
+<span class="sd">        Mean: 13.20, Std: 3.03</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">scores</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">mean</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">min_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">fitted_params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_stats</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_update_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update statistics from scores list.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_score</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_score</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span>
+
+        <span class="c1"># Calculate standard deviation</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">variance</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">s</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span> <span class="o">**</span>
+                           <span class="mi">2</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">variance</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+<div class="viewcode-block" id="ScoreDistribution.add_score">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoreDistribution.add_score">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">score</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a score to the distribution.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_stats</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ScoreDistribution.get_percentile">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoreDistribution.get_percentile">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_percentile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">percentile</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a percentile of the distribution.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            percentile: Percentile value (0-100).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Score at the given percentile.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="n">sorted_scores</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">percentile</span> <span class="o">/</span> <span class="mi">100</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_scores</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_scores</span><span class="p">):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_scores</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">sorted_scores</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="ScoreDistribution.get_pvalue">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoreDistribution.get_pvalue">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_pvalue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">score</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate p-value for a given score.</span>
+
+<span class="sd">        P-value is the probability of observing a score &gt;= given score</span>
+<span class="sd">        in the background distribution.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            score: Score to evaluate.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Estimated p-value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">1.0</span>
+
+        <span class="c1"># Count scores &gt;= given score</span>
+        <span class="n">n_ge</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scores</span> <span class="k">if</span> <span class="n">s</span> <span class="o">&gt;=</span> <span class="n">score</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">n_ge</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ScoreDistribution.get_evalue">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoreDistribution.get_evalue">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_evalue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">score</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">effective_db_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate E-value for a given score.</span>
+
+<span class="sd">        E-value is the expected number of random hits with score &gt;= given score.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            score: Score to evaluate.</span>
+<span class="sd">            effective_db_size: Effective database size (total length).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Estimated E-value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pvalue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
+        <span class="c1"># E-value = p-value * effective number of independent tests</span>
+        <span class="c1"># For sequence search, effective tests ≈ database size</span>
+        <span class="k">return</span> <span class="n">pvalue</span> <span class="o">*</span> <span class="n">effective_db_size</span></div>
+
+
+<div class="viewcode-block" id="ScoreDistribution.fit_normal">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoreDistribution.fit_normal">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit_normal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit a normal distribution to the scores.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary with &#39;mean&#39; and &#39;std&#39; parameters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fitted_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitted_params</span></div>
+
+
+<div class="viewcode-block" id="ScoreDistribution.estimate_extreme_params">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.ScoreDistribution.estimate_extreme_params">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_extreme_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate parameters for extreme value distribution.</span>
+
+<span class="sd">        This is a simplified approximation for the Gumbel distribution</span>
+<span class="sd">        parameters (λ and K) used in real BLAST.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple of (lambda_param, K_param).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">scores</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="c1"># Get top scores (extreme values)</span>
+        <span class="n">sorted_scores</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">top_scores</span> <span class="o">=</span> <span class="n">sorted_scores</span><span class="p">[:</span><span class="nb">min</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_scores</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">top_scores</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="c1"># Estimate λ from the tail of the distribution</span>
+        <span class="c1"># For Gumbel distribution, the tail follows exp(-λ * (x - u))</span>
+        <span class="c1"># We approximate by fitting an exponential to the top scores</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Use log of rank vs score</span>
+            <span class="n">scores_log</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">top_scores</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">scores_log</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">score</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)))</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scores_log</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+            <span class="c1"># Simple linear regression on log(rank) ~ score</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">scores_log</span><span class="p">]</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">scores_log</span><span class="p">]</span>
+
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+            <span class="n">x_mean</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+            <span class="n">y_mean</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+
+            <span class="c1"># Slope = -λ</span>
+            <span class="n">numerator</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_mean</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_mean</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+            <span class="n">denominator</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_mean</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">denominator</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+            <span class="n">lambda_param</span> <span class="o">=</span> <span class="o">-</span><span class="n">numerator</span> <span class="o">/</span> <span class="n">denominator</span>
+
+            <span class="c1"># K is estimated from the intercept</span>
+            <span class="c1"># log(K) ≈ intercept</span>
+            <span class="n">intercept</span> <span class="o">=</span> <span class="n">y_mean</span> <span class="o">-</span> <span class="p">(</span><span class="o">-</span><span class="n">lambda_param</span><span class="p">)</span> <span class="o">*</span> <span class="n">x_mean</span>
+            <span class="n">K_param</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">intercept</span><span class="p">)</span>
+
+            <span class="c1"># Cap parameters</span>
+            <span class="n">lambda_param</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">lambda_param</span><span class="p">))</span>
+            <span class="n">K_param</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">K_param</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="p">(</span><span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ScoreDistribution(n=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;mean=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;min=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">min_score</span><span class="si">}</span><span class="s2">, max=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_score</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="SignificanceResult">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceResult">[文档]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SignificanceResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistical significance results for a hit.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        hit: The original hit.</span>
+<span class="sd">        raw_score: Raw alignment score.</span>
+<span class="sd">        pvalue: Estimated p-value.</span>
+<span class="sd">        evalue: Estimated E-value.</span>
+<span class="sd">        bit_score: Bit score (normalized).</span>
+<span class="sd">        lambda_param: Lambda parameter from extreme value distribution.</span>
+<span class="sd">        K_param: K parameter from extreme value distribution.</span>
+<span class="sd">        is_significant: Whether the hit is statistically significant.</span>
+<span class="sd">        significance_level: Significance level used.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; result = SignificanceResult(hit, 100, 1e-5, 0.001)</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;E-value: {result.evalue:.2e}, Significant: {result.is_significant}&quot;)</span>
+<span class="sd">        E-value: 1.00e-03, Significant: True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">hit</span><span class="p">:</span> <span class="n">Hit</span>
+    <span class="n">raw_score</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pvalue</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">evalue</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">bit_score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">lambda_param</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">K_param</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">is_significant</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">significance_level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;SIGNIFICANT&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_significant</span> <span class="k">else</span> <span class="s2">&quot;NOT SIGNIFICANT&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SignificanceResult(score=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_score</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;evalue=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">evalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">, pvalue=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pvalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;bitscore=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bit_score</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SignificanceResult.to_dict">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceResult.to_dict">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to dictionary for output.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;query_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="s1">&#39;subject_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="s1">&#39;raw_score&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_score</span><span class="p">,</span>
+            <span class="s1">&#39;pvalue&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pvalue</span><span class="p">,</span>
+            <span class="s1">&#39;evalue&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">evalue</span><span class="p">,</span>
+            <span class="s1">&#39;bit_score&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bit_score</span><span class="p">,</span>
+            <span class="s1">&#39;lambda&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lambda_param</span><span class="p">,</span>
+            <span class="s1">&#39;K&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">K_param</span><span class="p">,</span>
+            <span class="s1">&#39;is_significant&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_significant</span><span class="p">,</span>
+            <span class="s1">&#39;significance_level&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">significance_level</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Statistical Significance Estimator</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="SignificanceEstimator">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceEstimator">[文档]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SignificanceEstimator</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Estimate statistical significance of sequence alignments.</span>
+
+<span class="sd">    This class uses empirical permutation testing to estimate the</span>
+<span class="sd">    significance of alignment scores. It can also fit extreme value</span>
+<span class="sd">    distributions for more efficient estimation.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        config: Alignment configuration.</span>
+<span class="sd">        seed_extender: SeedExtender for generating random alignments.</span>
+<span class="sd">        hit_scorer: HitScorer for scoring alignments.</span>
+<span class="sd">        n_permutations: Number of permutations for empirical estimation.</span>
+<span class="sd">        random_seed: Random seed for reproducibility.</span>
+<span class="sd">        background_distribution: Score distribution from random sequences.</span>
+<span class="sd">        extreme_params: Fitted extreme value distribution parameters.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; estimator = SignificanceEstimator(n_permutations=100)</span>
+<span class="sd">        &gt;&gt;&gt; dist = estimator.estimate_background_distribution(query, db_sequences)</span>
+<span class="sd">        &gt;&gt;&gt; result = estimator.estimate_significance(hit, query_length, db_size)</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;E-value: {result.evalue:.2e}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlignmentConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">n_permutations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+            <span class="n">random_seed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">min_score_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the significance estimator.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Alignment configuration.</span>
+<span class="sd">            n_permutations: Number of permutations for empirical estimation.</span>
+<span class="sd">            random_seed: Random seed for reproducibility.</span>
+<span class="sd">            min_score_threshold: Minimum score for evaluating significance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">AlignmentConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_permutations</span> <span class="o">=</span> <span class="n">n_permutations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_seed</span> <span class="o">=</span> <span class="n">random_seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_score_threshold</span> <span class="o">=</span> <span class="n">min_score_threshold</span>
+
+        <span class="c1"># Initialize components</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed_extender</span> <span class="o">=</span> <span class="n">SeedExtender</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="n">track_stats</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hit_scorer</span> <span class="o">=</span> <span class="n">HitScorer</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="c1"># Cached distributions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">background_distribution</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ScoreDistribution</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extreme_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Set random seed</span>
+        <span class="k">if</span> <span class="n">random_seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_seed</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SignificanceEstimator.estimate_background_distribution">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceEstimator.estimate_background_distribution">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_background_distribution</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s1">&#39;SequenceRecord&#39;</span><span class="p">],</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">n_permutations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ScoreDistribution</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate the background score distribution using permutation.</span>
+
+<span class="sd">        This method generates random alignments by permuting the query</span>
+<span class="sd">        sequence and scoring alignments to get the background distribution.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+<span class="sd">            n_permutations: Number of permutations (uses default if None).</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ScoreDistribution object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get query sequence</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="s1">&#39;sequence&#39;</span><span class="p">):</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">sequence</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">query_seq</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="c1"># Use specified or default number of permutations</span>
+        <span class="n">n_perm</span> <span class="o">=</span> <span class="n">n_permutations</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_permutations</span>
+
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Estimating background distribution with </span><span class="si">{</span><span class="n">n_perm</span><span class="si">}</span><span class="s2"> permutations...&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="n">scores</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_perm</span><span class="p">):</span>
+            <span class="c1"># Permute the query sequence</span>
+            <span class="n">permuted_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_permute_sequence</span><span class="p">(</span><span class="n">query_seq</span><span class="p">)</span>
+
+            <span class="c1"># Get some random seeds (simplified)</span>
+            <span class="c1"># For efficiency, we only take a sample of subject sequences</span>
+            <span class="n">subject_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample_subjects</span><span class="p">(</span>
+                <span class="n">subject_sequences</span><span class="p">,</span> <span class="n">max_subjects</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+
+            <span class="c1"># Generate random alignments</span>
+            <span class="k">for</span> <span class="n">subject_id</span><span class="p">,</span> <span class="n">subject_seq</span> <span class="ow">in</span> <span class="n">subject_sample</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Pick a random position in the query and subject</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">permuted_query</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_seq</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">q_pos</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">permuted_query</span><span class="p">)</span> <span class="o">-</span> <span class="mi">10</span><span class="p">)</span>
+                <span class="n">s_pos</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_seq</span><span class="p">)</span> <span class="o">-</span> <span class="mi">10</span><span class="p">)</span>
+
+                <span class="c1"># Extend the random seed</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed_extender</span><span class="o">.</span><span class="n">_extend_bidirectional</span><span class="p">(</span>
+                    <span class="n">query_seq</span><span class="o">=</span><span class="n">permuted_query</span><span class="p">,</span>
+                    <span class="n">subject_seq</span><span class="o">=</span><span class="n">subject_seq</span><span class="p">,</span>
+                    <span class="n">query_pos</span><span class="o">=</span><span class="n">q_pos</span><span class="p">,</span>
+                    <span class="n">subject_pos</span><span class="o">=</span><span class="n">s_pos</span><span class="p">,</span>
+                    <span class="n">query_id</span><span class="o">=</span><span class="s2">&quot;permuted&quot;</span><span class="p">,</span>
+                    <span class="n">subject_id</span><span class="o">=</span><span class="n">subject_id</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">result</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_score_threshold</span><span class="p">:</span>
+                    <span class="n">scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Permutation </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">n_perm</span><span class="si">}</span><span class="s2">, collected </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span><span class="si">}</span><span class="s2"> scores&quot;</span><span class="p">,</span>
+                      <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="c1"># Create distribution</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="n">ScoreDistribution</span><span class="p">(</span><span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Done: </span><span class="si">{</span><span class="n">dist</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">p95</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">get_percentile</span><span class="p">(</span><span class="mi">95</span><span class="p">)</span>
+                <span class="n">p99</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">get_percentile</span><span class="p">(</span><span class="mi">99</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    P95: </span><span class="si">{</span><span class="n">p95</span><span class="si">}</span><span class="s2">, P99: </span><span class="si">{</span><span class="n">p99</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">background_distribution</span> <span class="o">=</span> <span class="n">dist</span>
+        <span class="k">return</span> <span class="n">dist</span></div>
+
+
+<div class="viewcode-block" id="SignificanceEstimator.estimate_extreme_value_distribution">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceEstimator.estimate_extreme_value_distribution">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_extreme_value_distribution</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s1">&#39;SequenceRecord&#39;</span><span class="p">],</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">n_permutations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate parameters for extreme value distribution.</span>
+
+<span class="sd">        This fits a Gumbel distribution to the extreme scores from</span>
+<span class="sd">        permutation testing.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: Query sequence or SequenceRecord.</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+<span class="sd">            n_permutations: Number of permutations.</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple of (lambda_param, K_param).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get background distribution</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimate_background_distribution</span><span class="p">(</span>
+            <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="o">=</span><span class="n">subject_sequences</span><span class="p">,</span>
+            <span class="n">n_permutations</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span>
+            <span class="n">progress</span><span class="o">=</span><span class="n">progress</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Fit extreme value distribution</span>
+        <span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">estimate_extreme_params</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extreme_params</span> <span class="o">=</span> <span class="p">(</span><span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extreme value parameters: λ=</span><span class="si">{</span><span class="n">lambda_param</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, K=</span><span class="si">{</span><span class="n">K_param</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span></div>
+
+
+<div class="viewcode-block" id="SignificanceEstimator.estimate_significance">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceEstimator.estimate_significance">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_significance</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">hit</span><span class="p">:</span> <span class="n">Hit</span><span class="p">,</span>
+            <span class="n">query_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">db_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">use_extreme_distribution</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SignificanceResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate significance of a single hit.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hit: Hit object to evaluate.</span>
+<span class="sd">            query_length: Length of the query sequence.</span>
+<span class="sd">            db_size: Total length of the database.</span>
+<span class="sd">            use_extreme_distribution: Use extreme value distribution if available.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            SignificanceResult object.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; result = estimator.estimate_significance(hit, 1000, 5000000)</span>
+<span class="sd">            &gt;&gt;&gt; if result.is_significant:</span>
+<span class="sd">            ...     print(&quot;Significant hit found!&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Use raw score</span>
+        <span class="n">raw_score</span> <span class="o">=</span> <span class="n">hit</span><span class="o">.</span><span class="n">score</span>
+
+        <span class="c1"># Calculate bit score</span>
+        <span class="n">bit_score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hit_scorer</span><span class="o">.</span><span class="n">_calculate_bit_score</span><span class="p">(</span><span class="n">raw_score</span><span class="p">)</span>
+
+        <span class="c1"># Estimate p-value and E-value</span>
+        <span class="k">if</span> <span class="n">use_extreme_distribution</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">extreme_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Use extreme value distribution</span>
+            <span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extreme_params</span>
+
+            <span class="c1"># Gumbel CDF: P(X &lt;= x) = exp(-K * exp(-λ * x))</span>
+            <span class="c1"># P(X &gt; x) = 1 - exp(-K * exp(-λ * x))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">raw_score</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">exp_term</span> <span class="o">=</span> <span class="n">K_param</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">lambda_param</span> <span class="o">*</span> <span class="n">raw_score</span><span class="p">)</span>
+                    <span class="n">pvalue</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">exp_term</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">pvalue</span> <span class="o">=</span> <span class="mf">1.0</span>
+                <span class="n">evalue</span> <span class="o">=</span> <span class="n">pvalue</span> <span class="o">*</span> <span class="n">db_size</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">pvalue</span> <span class="o">=</span> <span class="mf">1.0</span>
+                <span class="n">evalue</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_distribution</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Use empirical distribution</span>
+            <span class="n">pvalue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_distribution</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">raw_score</span><span class="p">)</span>
+            <span class="n">evalue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_distribution</span><span class="o">.</span><span class="n">get_evalue</span><span class="p">(</span>
+                <span class="n">raw_score</span><span class="p">,</span> <span class="n">db_size</span><span class="p">)</span>
+            <span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_distribution</span><span class="o">.</span><span class="n">estimate_extreme_params</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Fallback: simple heuristic</span>
+            <span class="k">if</span> <span class="n">raw_score</span> <span class="o">&gt;</span> <span class="mi">50</span><span class="p">:</span>
+                <span class="n">pvalue</span> <span class="o">=</span> <span class="mf">0.001</span>
+                <span class="n">evalue</span> <span class="o">=</span> <span class="mf">0.01</span>
+            <span class="k">elif</span> <span class="n">raw_score</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">:</span>
+                <span class="n">pvalue</span> <span class="o">=</span> <span class="mf">0.01</span>
+                <span class="n">evalue</span> <span class="o">=</span> <span class="mf">0.1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pvalue</span> <span class="o">=</span> <span class="mf">0.1</span>
+                <span class="n">evalue</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="c1"># Determine significance (alpha = 0.05, adjusted for multiple testing)</span>
+        <span class="c1"># Bonferroni correction: alpha / number of tests</span>
+        <span class="c1"># For simplicity, we use alpha = 0.05</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.05</span>
+        <span class="n">is_significant</span> <span class="o">=</span> <span class="n">evalue</span> <span class="o">&lt;</span> <span class="n">alpha</span>
+
+        <span class="c1"># Adjust for database size</span>
+        <span class="k">if</span> <span class="n">db_size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">evalue</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">evalue</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">db_size</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">SignificanceResult</span><span class="p">(</span>
+            <span class="n">hit</span><span class="o">=</span><span class="n">hit</span><span class="p">,</span>
+            <span class="n">raw_score</span><span class="o">=</span><span class="n">raw_score</span><span class="p">,</span>
+            <span class="n">pvalue</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">pvalue</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+            <span class="n">evalue</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">evalue</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+            <span class="n">bit_score</span><span class="o">=</span><span class="n">bit_score</span><span class="p">,</span>
+            <span class="n">lambda_param</span><span class="o">=</span><span class="n">lambda_param</span><span class="p">,</span>
+            <span class="n">K_param</span><span class="o">=</span><span class="n">K_param</span><span class="p">,</span>
+            <span class="n">is_significant</span><span class="o">=</span><span class="n">is_significant</span><span class="p">,</span>
+            <span class="n">significance_level</span><span class="o">=</span><span class="n">alpha</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SignificanceEstimator.estimate_significance_batch">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceEstimator.estimate_significance_batch">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_significance_batch</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">hits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Hit</span><span class="p">],</span>
+            <span class="n">query_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">db_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">use_extreme_distribution</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">SignificanceResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate significance for multiple hits.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hits: List of Hit objects.</span>
+<span class="sd">            query_length: Length of the query sequence.</span>
+<span class="sd">            db_size: Total length of the database.</span>
+<span class="sd">            use_extreme_distribution: Use extreme value distribution if available.</span>
+<span class="sd">            progress: Show progress feedback.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of SignificanceResult objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">hits</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Estimating significance for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">hit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">hits</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimate_significance</span><span class="p">(</span>
+                <span class="n">hit</span><span class="o">=</span><span class="n">hit</span><span class="p">,</span>
+                <span class="n">query_length</span><span class="o">=</span><span class="n">query_length</span><span class="p">,</span>
+                <span class="n">db_size</span><span class="o">=</span><span class="n">db_size</span><span class="p">,</span>
+                <span class="n">use_extreme_distribution</span><span class="o">=</span><span class="n">use_extreme_distribution</span>
+            <span class="p">)</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Processed </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="c1"># Sort by E-value (smallest first)</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">evalue</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">progress</span><span class="p">:</span>
+            <span class="n">significant</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">is_significant</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Done: </span><span class="si">{</span><span class="n">significant</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits are significant&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_permute_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sequence</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Permute a sequence randomly.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sequence: Original sequence.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Permuted sequence.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">seq_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sequence</span><span class="p">)</span>
+        <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">seq_list</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">seq_list</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_subjects</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">subject_sequences</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">max_subjects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample a subset of subject sequences.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subject_sequences: Dictionary mapping subject ID to sequence.</span>
+<span class="sd">            max_subjects: Maximum number of subjects to sample.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of sampled subject sequences.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_sequences</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">max_subjects</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">subject_sequences</span>
+
+        <span class="n">subject_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">subject_sequences</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">sampled_ids</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span>
+            <span class="n">subject_ids</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_subjects</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject_ids</span><span class="p">)))</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="n">sid</span><span class="p">:</span> <span class="n">subject_sequences</span><span class="p">[</span><span class="n">sid</span><span class="p">]</span> <span class="k">for</span> <span class="n">sid</span> <span class="ow">in</span> <span class="n">sampled_ids</span><span class="p">}</span>
+
+<div class="viewcode-block" id="SignificanceEstimator.adjust_for_multiple_testing">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.SignificanceEstimator.adjust_for_multiple_testing">[文档]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">adjust_for_multiple_testing</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SignificanceResult</span><span class="p">],</span>
+            <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;bonferroni&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">SignificanceResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply multiple testing correction.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            results: List of SignificanceResult objects.</span>
+<span class="sd">            method: Correction method (&#39;bonferroni&#39; or &#39;fdr&#39;).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of corrected SignificanceResult objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">results</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">results</span>
+
+        <span class="n">n_tests</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;bonferroni&#39;</span><span class="p">:</span>
+            <span class="c1"># Bonferroni correction: alpha / n_tests</span>
+            <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">significance_level</span> <span class="o">=</span> <span class="mf">0.05</span> <span class="o">/</span> <span class="n">n_tests</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">is_significant</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">pvalue</span> <span class="o">&lt;</span> <span class="n">result</span><span class="o">.</span><span class="n">significance_level</span>
+
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;fdr&#39;</span><span class="p">:</span>
+            <span class="c1"># Benjamini-Hochberg FDR</span>
+            <span class="n">sorted_results</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">pvalue</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sorted_results</span><span class="p">):</span>
+                <span class="c1"># BH procedure: p-value &lt; (i+1)/n_tests * alpha</span>
+                <span class="n">threshold</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_tests</span> <span class="o">*</span> <span class="mf">0.05</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">significance_level</span> <span class="o">=</span> <span class="n">threshold</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">is_significant</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">pvalue</span> <span class="o">&lt;</span> <span class="n">threshold</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Statistical Reporting</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="format_significance_results">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.format_significance_results">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_significance_results</span><span class="p">(</span>
+        <span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SignificanceResult</span><span class="p">],</span>
+        <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;text&#39;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format significance results for output.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        results: List of SignificanceResult objects.</span>
+<span class="sd">        format: Output format (&#39;text&#39;, &#39;tsv&#39;, &#39;json&#39;).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Formatted string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_format_text</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;tsv&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_format_tsv</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_format_json</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_format_text</span><span class="p">(</span><span class="n">results</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_format_text</span><span class="p">(</span><span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SignificanceResult</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format as human-readable text.&quot;&quot;&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Statistical Significance Results&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">[:</span><span class="mi">20</span><span class="p">]):</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;✓ SIGNIFICANT&quot;</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">is_significant</span> <span class="k">else</span> <span class="s2">&quot;✗ NOT SIGNIFICANT&quot;</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">. Subject: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;   Score: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">raw_score</span><span class="si">}</span><span class="s2"> (bitscore: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">bit_score</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   E-value: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">evalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   P-value: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">pvalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Status: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;... and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">20</span><span class="si">}</span><span class="s2"> more results&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_format_tsv</span><span class="p">(</span><span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SignificanceResult</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format as TSV.&quot;&quot;&quot;</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+        <span class="s2">&quot;rank&quot;</span><span class="p">,</span> <span class="s2">&quot;query_id&quot;</span><span class="p">,</span> <span class="s2">&quot;subject_id&quot;</span><span class="p">,</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span> <span class="s2">&quot;pvalue&quot;</span><span class="p">,</span> <span class="s2">&quot;evalue&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;bit_score&quot;</span><span class="p">,</span> <span class="s2">&quot;lambda&quot;</span><span class="p">,</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="s2">&quot;is_significant&quot;</span>
+    <span class="p">])</span>
+
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">header</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">query_id</span><span class="p">,</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">subject_id</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">raw_score</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">pvalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">evalue</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">bit_score</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">lambda_param</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">K_param</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">is_significant</span><span class="p">)</span>
+        <span class="p">])</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_format_json</span><span class="p">(</span><span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SignificanceResult</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format as JSON.&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;total_results&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">),</span>
+        <span class="s2">&quot;significant_count&quot;</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">is_significant</span><span class="p">),</span>
+        <span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Command Line Interface (for testing)</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../api/blastmini.html#blastmini.main">[文档]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple command line interface for testing statistical significance.&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_hits_from_tsv</span><span class="p">,</span> <span class="n">parse_fasta</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Statistical significance tool&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--input&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input hits file (TSV)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--database&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Database FASTA file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-q&quot;</span><span class="p">,</span> <span class="s2">&quot;--query&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Query sequence (string or file)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-n&quot;</span><span class="p">,</span> <span class="s2">&quot;--permutations&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of permutations&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--format&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="s2">&quot;tsv&quot;</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output format&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--seed&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Random seed&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="c1"># Load hits</span>
+    <span class="n">hits</span> <span class="o">=</span> <span class="n">load_hits_from_tsv</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hits</span><span class="p">)</span><span class="si">}</span><span class="s2"> hits&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="c1"># Load database sequences</span>
+    <span class="n">subject_sequences</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">database</span><span class="p">):</span>
+        <span class="n">subject_sequences</span><span class="p">[</span><span class="n">record</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">sequence</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">subject_sequences</span><span class="p">)</span><span class="si">}</span><span class="s2"> database sequences&quot;</span><span class="p">,</span>
+          <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="c1"># Load query</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_fasta</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">query</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">records</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">records</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">query</span>
+
+    <span class="k">if</span> <span class="n">query</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: Could not load query&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Calculate database size</span>
+    <span class="n">db_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">subject_sequences</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="c1"># Create estimator</span>
+    <span class="n">estimator</span> <span class="o">=</span> <span class="n">SignificanceEstimator</span><span class="p">(</span>
+        <span class="n">n_permutations</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">permutations</span><span class="p">,</span>
+        <span class="n">random_seed</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">seed</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Estimate background distribution</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Estimating background distribution...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="c1"># Estimate extreme value distribution</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Fitting extreme value distribution...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">lambda_param</span><span class="p">,</span> <span class="n">K_param</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">estimate_extreme_value_distribution</span><span class="p">(</span>
+        <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+        <span class="n">subject_sequences</span><span class="o">=</span><span class="n">subject_sequences</span><span class="p">,</span>
+        <span class="n">n_permutations</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">permutations</span><span class="p">,</span>
+        <span class="n">progress</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Estimate significance for all hits</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Estimating significance...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">estimate_significance_batch</span><span class="p">(</span>
+        <span class="n">hits</span><span class="o">=</span><span class="n">hits</span><span class="p">,</span>
+        <span class="n">query_length</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">),</span>
+        <span class="n">db_size</span><span class="o">=</span><span class="n">db_size</span><span class="p">,</span>
+        <span class="n">progress</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Apply multiple testing correction</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Applying FDR correction...&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">adjust_for_multiple_testing</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;fdr&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Format output</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">format_significance_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Output written to </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2026, linchenghang-wuyuxuan-tangyuxiang。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
