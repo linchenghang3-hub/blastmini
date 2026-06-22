@@ -3,7 +3,6 @@ name: Deploy Sphinx documentation to GitHub Pages
 on:
   push:
     branches: [main]  # 当推送到 main 分支时触发
-    paths: ['docs/**'] # 仅当 docs 目录下有变化时才运行
   workflow_dispatch:   
 
 permissions:
