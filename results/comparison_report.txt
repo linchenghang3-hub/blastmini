@@ -1,0 +1,12 @@
+==================================================
+COMPARISON REPORT: blastmini vs blastn
+==================================================
+Number of common queries: 10
+Score correlation: nan
+Identity correlation: nan
+Mean score difference (blastn - mini): -630.00
+Std score difference: 0.00
+Mean identity difference (blastn - mini): 0.00%
+Std identity difference: 0.00%
+Same subject ID ratio: 100.00%
+==================================================

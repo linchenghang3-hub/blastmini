@@ -1,0 +1,94 @@
+# Snakefile for blastmini reproducible workflow
+# 定义最终目标
+rule all:
+    input:
+        "results/comparison.png",
+        "results/comparison_report.txt"
+
+# 定义输入文件
+GENOME_FASTA = "data/NC_000913.3.fa"   # 你的大肠杆菌基因组文件
+QUERY_LENGTH = 200           # 模拟 reads 长度
+NUM_QUERIES = 50             # 生成 reads 数量
+BLASTN_DB = "data/ecoli_blastn_db"   # blastn 数据库前缀
+
+# 规则1：为 blastn 建库（使用标记文件）
+rule build_blastn_db:
+    input:
+        fasta = GENOME_FASTA
+    output:
+        done = "data/ecoli_blastn_db.done"   # 标记文件
+    params:
+        dbname = BLASTN_DB
+    shell:
+        """
+        makeblastdb -in {input.fasta} -dbtype nucl -out {params.dbname}
+        touch {output.done}   # 创建标记文件
+        """
+
+# 规则2：生成模拟查询 reads
+rule generate_queries:
+    input:
+        genome = GENOME_FASTA
+    output:
+        queries = "data/queries.fa"
+    params:
+        n = NUM_QUERIES,
+        length = QUERY_LENGTH
+    script:
+        "scripts/generate_queries.py"   # 使用脚本
+
+# 规则3：构建 blastmini 索引
+rule build_blastmini_index:
+    input:
+        fasta = GENOME_FASTA
+    output:
+        index = "data/index.json",
+        meta = "data/index.json.meta"
+    params:
+        k = 11
+    shell:
+        "blastmini build -i {input.fasta} -o {output.index} -k {params.k}"
+
+# 规则4：使用 blastmini 搜索
+rule search_blastmini:
+    input:
+        index = "data/index.json",
+        queries = "data/queries.fa",
+        genome = GENOME_FASTA   # 需要原 fasta 供 extension 使用
+    output:
+        results = "results/blastmini_results.tsv"
+    shell:
+        "blastmini search -q {input.queries} -d {input.index} --database-fasta {input.genome} -o {output.results} --format tsv --top 10"
+
+# 规则5：使用 blastn 搜索（输入改为标记文件）
+rule search_blastn:
+    input:
+        queries = "data/queries.fa",
+        db_done = "data/ecoli_blastn_db.done"
+    output:
+        results = "results/blastn_results.tsv"
+    params:
+        dbname = BLASTN_DB,
+        outfmt = "6 qseqid sseqid bitscore pident length qstart qend sstart send evalue"
+    shell:
+        "blastn -query {input.queries} -db {params.dbname} -out {output.results} -outfmt '{params.outfmt}' -num_alignments 10"
+
+# 规则6：对比结果并生成图表
+rule benchmark:
+    input:
+        blastmini_results = "results/blastmini_results.tsv",
+        blastn_results = "results/blastn_results.tsv"
+    output:
+        plot = "results/benchmark.png"
+    script:
+        "scripts/benchmark.py"
+# 规则：对比结果
+rule compare_results:
+    input:
+        mini = "results/blastmini_results.tsv",
+        blastn = "results/blastn_results.tsv"
+    output:
+        plot = "results/comparison.png",
+        report = "results/comparison_report.txt"
+    shell:
+        "python workflows/scripts/compare.py --mini {input.mini} --blastn {input.blastn} --plot {output.plot} --report {output.report}"

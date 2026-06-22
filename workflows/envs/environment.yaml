@@ -1,0 +1,16 @@
+name: blastmini-workflow
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - snakemake=7.25.0
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - blast=2.13.0   # 提供 makeblastdb 和 blastn
+  - pip
+  - pip:
+    - -e ../..     # 安装 blastmini 本身（开发模式）
