@@ -1,9 +1,8 @@
 """Tests for seed finding."""
 
-import pytest
-from blastmini.seeding import SeedFinder, Seed, SeedCluster
 from blastmini.index import KmerIndex
-from blastmini.models import SequenceRecord, AlignmentConfig
+from blastmini.models import SequenceRecord
+from blastmini.seeding import Seed, SeedCluster, SeedFinder
 
 
 def test_seed_creation():

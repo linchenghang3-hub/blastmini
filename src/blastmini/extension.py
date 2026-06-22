@@ -15,19 +15,18 @@ Key features:
 """
 
 import sys
-from typing import List, Tuple, Optional, Dict, Set, Union, Iterator
-from dataclasses import dataclass, field
 from collections import defaultdict
-import math
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Set, Tuple, Union
 
-from .models import SequenceRecord, Hit, AlignmentConfig
-from .seeding import Seed, SeedCluster
 from .index import reverse_complement
-
+from .models import AlignmentConfig, Hit, SequenceRecord
+from .seeding import Seed, SeedCluster
 
 # ============================================================================
 # Extension Data Structures
 # ============================================================================
+
 
 @dataclass
 class ExtensionResult:
@@ -157,11 +156,13 @@ class ExtensionStats:
             self.successful_extensions += 1
             self.total_extension_steps += result.extension_steps
             self.average_extension_length = (
-                    (self.average_extension_length * (self.successful_extensions - 1) +
-                     result.alignment_length) / self.successful_extensions
+                (self.average_extension_length * (self.successful_extensions - 1) +
+                 result.alignment_length) / self.successful_extensions
             )
-            self.max_extension_length = max(self.max_extension_length, result.alignment_length)
-            self.min_score = min(self.min_score, result.score) if self.min_score != 0 else result.score
+            self.max_extension_length = max(
+                self.max_extension_length, result.alignment_length)
+            self.min_score = min(
+                self.min_score, result.score) if self.min_score != 0 else result.score
             self.max_score = max(self.max_score, result.score)
         else:
             self.failed_extensions += 1
@@ -309,13 +310,14 @@ class SeedExtender:
             return []
 
         results: List[ExtensionResult] = []
-        seen_pairs: Set[Tuple[str, str, int, int]] = set()  # subject_id, q_start, q_end, s_start, s_end
+        # subject_id, q_start, q_end, s_start, s_end
+        seen_pairs: Set[Tuple[str, str, int, int]] = set()
 
         # Get query sequence
         if isinstance(query, SequenceRecord):
-            query_seq = query.sequence
+            query.sequence
         else:
-            query_seq = str(query)
+            str(query)
 
         # Filter seeds by quality
         filtered_seeds = self._filter_seeds(seeds)
@@ -457,7 +459,6 @@ class SeedExtender:
 
         # For tracking max score during extension
         max_score = total_score
-        max_score_position = query_pos
 
         # Store alignment characters (for visualization)
         query_chars = [query_seq[query_pos]]
@@ -501,7 +502,6 @@ class SeedExtender:
                 # Update max score tracking
                 if total_score > max_score:
                     max_score = total_score
-                    max_score_position = right_query
 
                 right_query += 1
                 right_subject += 1
@@ -546,7 +546,6 @@ class SeedExtender:
                 # Update max score tracking
                 if total_score > max_score:
                     max_score = total_score
-                    max_score_position = left_query
 
                 left_query -= 1
                 left_subject -= 1
@@ -567,7 +566,8 @@ class SeedExtender:
         seed_subject_char = subject_seq[subject_pos]
 
         # Right side
-        right_query_aln = ''.join(query_chars[1:])  # Skip the seed char (included in query_chars[0])
+        # Skip the seed char (included in query_chars[0])
+        right_query_aln = ''.join(query_chars[1:])
         right_subject_aln = ''.join(subject_chars[1:])
 
         # Complete alignment
@@ -575,7 +575,8 @@ class SeedExtender:
         subject_alignment = left_subject_aln + seed_subject_char + right_subject_aln
 
         # Calculate identity and mismatches
-        identity = sum(1 for q, s in zip(query_alignment, subject_alignment) if q == s and q != '-')
+        identity = sum(1 for q, s in zip(query_alignment,
+                       subject_alignment) if q == s and q != '-')
         mismatches = sum(1 for q, s in zip(query_alignment, subject_alignment)
                          if q != '-' and s != '-' and q != s)
 
@@ -631,7 +632,8 @@ class SeedExtender:
         filtered = []
 
         for seed in seeds:
-            key = (seed.query_id, seed.subject_id, seed.query_pos, seed.subject_pos)
+            key = (seed.query_id, seed.subject_id,
+                   seed.query_pos, seed.subject_pos)
             if key not in seen:
                 seen.add(key)
                 filtered.append(seed)
@@ -685,7 +687,9 @@ def evaluate_extension_result(result: ExtensionResult) -> Dict[str, float]:
         'score_per_position': result.score / result.alignment_length if result.alignment_length > 0 else 0,
         'mismatch_rate': result.mismatches / result.alignment_length if result.alignment_length > 0 else 0,
         'extension_efficiency': result.extension_steps / result.alignment_length if result.alignment_length > 0 else 0,
-        'score_stability': result.score / result.max_score_during_extension if result.max_score_during_extension > 0 else 0
+        'score_stability': result.score / result.max_score_during_extension
+        if result.max_score_during_extension > 0
+        else 0
     }
     return metrics
 
@@ -744,8 +748,8 @@ def main():
 
     # Build index
     from .index import build_index_from_fasta
-    from .seeding import SeedFinder
     from .io import parse_fasta
+    from .seeding import SeedFinder
 
     print("Building index...", file=sys.stderr)
     idx = build_index_from_fasta(args.database, k=args.kmer, progress=False)
@@ -793,10 +797,13 @@ def main():
                   f"len={result.alignment_length}")
 
     if extender.stats:
-        print(f"\nExtension Statistics:", file=sys.stderr)
-        print(f"  Total extensions: {extender.stats.total_extensions}", file=sys.stderr)
-        print(f"  Successful: {extender.stats.successful_extensions}", file=sys.stderr)
-        print(f"  Average length: {extender.stats.average_extension_length:.1f}", file=sys.stderr)
+        print("\nExtension Statistics:", file=sys.stderr)
+        print(
+            f"  Total extensions: {extender.stats.total_extensions}", file=sys.stderr)
+        print(
+            f"  Successful: {extender.stats.successful_extensions}", file=sys.stderr)
+        print(
+            f"  Average length: {extender.stats.average_extension_length:.1f}", file=sys.stderr)
         print(f"  Max score: {extender.stats.max_score}", file=sys.stderr)
 
 

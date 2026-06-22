@@ -5,7 +5,7 @@ package, including sequence records, alignment hits, and configuration
 parameters.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 
@@ -44,7 +44,8 @@ class SequenceRecord:
 
     def __repr__(self) -> str:
         """Compact string representation."""
-        seq_preview = self.sequence[:30] + "..." if len(self.sequence) > 30 else self.sequence
+        seq_preview = self.sequence[:30] + \
+            "..." if len(self.sequence) > 30 else self.sequence
         return f"SequenceRecord(id='{self.id}', length={len(self)}, sequence='{seq_preview}')"
 
 
@@ -186,9 +187,11 @@ class AlignmentConfig:
         if self.kmer_size < 1:
             raise ValueError(f"kmer_size must be >= 1, got {self.kmer_size}")
         if self.match_score < 1:
-            raise ValueError(f"match_score must be positive, got {self.match_score}")
+            raise ValueError(
+                f"match_score must be positive, got {self.match_score}")
         if self.mismatch_penalty > 0:
-            raise ValueError(f"mismatch_penalty must be <= 0, got {self.mismatch_penalty}")
+            raise ValueError(
+                f"mismatch_penalty must be <= 0, got {self.mismatch_penalty}")
         if self.x_dropoff < 1:
             raise ValueError(f"x_dropoff must be >= 1, got {self.x_dropoff}")
         if self.top_n < 1:

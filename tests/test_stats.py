@@ -1,8 +1,7 @@
 """Tests for statistical significance."""
 
-import pytest
+from blastmini.models import AlignmentConfig, Hit
 from blastmini.stats import ScoreDistribution, SignificanceEstimator
-from blastmini.models import Hit, AlignmentConfig
 
 
 def test_score_distribution():
@@ -23,7 +22,8 @@ def test_significance_estimator_basic(sample_records):
     estimator = SignificanceEstimator(config=config, n_permutations=2)
     subject_sequences = {rec.id: rec.sequence for rec in sample_records}
     query = sample_records[0]  # seq1
-    dist = estimator.estimate_background_distribution(query, subject_sequences, n_permutations=2, progress=False)
+    dist = estimator.estimate_background_distribution(
+        query, subject_sequences, n_permutations=2, progress=False)
     assert dist.n_samples >= 0  # may be 0 if no scores
     # Since permuted sequences may not yield scores, just test no crash
 
@@ -41,8 +41,10 @@ def test_estimate_significance():
 def test_multiple_testing_correction():
     estimator = SignificanceEstimator()
     hits = [Hit("Q1", f"S{i}", score=50+i) for i in range(10)]
-    results = [estimator.estimate_significance(h, 100, 1000, use_extreme_distribution=False) for h in hits]
-    corrected = estimator.adjust_for_multiple_testing(results, method='bonferroni')
+    results = [estimator.estimate_significance(
+        h, 100, 1000, use_extreme_distribution=False) for h in hits]
+    corrected = estimator.adjust_for_multiple_testing(
+        results, method='bonferroni')
     for r in corrected:
         assert r.significance_level == 0.05/10
     # FDR

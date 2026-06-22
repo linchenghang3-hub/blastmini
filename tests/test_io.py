@@ -1,9 +1,12 @@
 """Tests for I/O functions."""
 
-import pytest
 import gzip
-from blastmini.io import parse_fasta, save_index, load_index, save_hits_to_tsv, load_hits_from_tsv
-from blastmini.models import SequenceRecord, Hit
+
+import pytest
+
+from blastmini.io import (load_hits_from_tsv, load_index, parse_fasta,
+                          save_hits_to_tsv, save_index)
+from blastmini.models import Hit
 
 
 def test_parse_fasta(sample_fasta_file):
@@ -36,7 +39,8 @@ def test_save_load_index(tmp_path):
 
 
 def test_save_load_hits(tmp_path):
-    hits = [Hit("Q1", "S1", 100, 95.0, 200, 0, 200, 0, 200,evalue=1e-5, bit_score=50.0)]
+    hits = [Hit("Q1", "S1", 100, 95.0, 200, 0, 200,
+                0, 200, evalue=1e-5, bit_score=50.0)]
     tsv_file = tmp_path / "hits.tsv"
     save_hits_to_tsv(hits, tsv_file)
     loaded = load_hits_from_tsv(tsv_file)

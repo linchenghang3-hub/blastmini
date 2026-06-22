@@ -15,18 +15,17 @@ Key features:
 """
 
 import sys
-from typing import Dict, List, Tuple, Optional, Set, Union, Iterator
 from collections import defaultdict
 from dataclasses import dataclass, field
-import math
+from typing import Dict, List, Optional, Set, Tuple, Union
 
-from .models import SequenceRecord, Hit, AlignmentConfig
-from .index import KmerIndex, extract_kmers, canonical_kmer
-
+from .index import KmerIndex, extract_kmers
+from .models import AlignmentConfig, SequenceRecord
 
 # ============================================================================
 # Seed Data Structures
 # ============================================================================
+
 
 @dataclass
 class Seed:
@@ -268,7 +267,8 @@ class SeedFinder:
 
         # Find seeds
         seeds: List[Seed] = []
-        seen_positions: Set[Tuple[str, int, int]] = set()  # subject_id, query_pos, subject_pos
+        # subject_id, query_pos, subject_pos
+        seen_positions: Set[Tuple[str, int, int]] = set()
 
         # Determine which subject IDs to search
         if subject_ids is None:
@@ -279,11 +279,13 @@ class SeedFinder:
         # Progress tracking
         total_kmers = len(query_kmers)
         if progress and total_kmers > 1000:
-            print(f"Searching {total_kmers} k-mers in index...", file=sys.stderr)
+            print(
+                f"Searching {total_kmers} k-mers in index...", file=sys.stderr)
 
         for idx, (kmer, q_pos) in enumerate(query_kmers):
             # Look up k-mer in index
-            matches = self.index.lookup(kmer, canonical=False)  # Already canonical
+            matches = self.index.lookup(
+                kmer, canonical=False)  # Already canonical
 
             if not matches:
                 continue
@@ -317,7 +319,8 @@ class SeedFinder:
                 # Check max seeds
                 if max_seeds and len(seeds) >= max_seeds:
                     if progress:
-                        print(f"  Reached max seeds ({max_seeds})", file=sys.stderr)
+                        print(
+                            f"  Reached max seeds ({max_seeds})", file=sys.stderr)
                     return self._filter_seeds(seeds)
 
             # Progress update
@@ -355,7 +358,8 @@ class SeedFinder:
             print(f"Processing {total_queries} queries...", file=sys.stderr)
 
         for i, query in enumerate(queries):
-            query_id = query.id if isinstance(query, SequenceRecord) else f"query_{i}"
+            query_id = query.id if isinstance(
+                query, SequenceRecord) else f"query_{i}"
             results[query_id] = self.find_seeds(
                 query=query,
                 subject_ids=subject_ids,
@@ -364,7 +368,8 @@ class SeedFinder:
             )
 
             if progress and (i + 1) % 10 == 0:
-                print(f"  Processed {i + 1}/{total_queries} queries", file=sys.stderr)
+                print(
+                    f"  Processed {i + 1}/{total_queries} queries", file=sys.stderr)
 
         return results
 
@@ -629,8 +634,9 @@ def main():
 
     # Load or build index
     try:
-        from .index import load_index_from_file, build_index_from_fasta
         import os
+
+        from .index import build_index_from_fasta, load_index_from_file
 
         if os.path.exists(args.database) and args.database.endswith('.json'):
             idx = load_index_from_file(args.database)
@@ -652,13 +658,15 @@ def main():
     finder = SeedFinder(idx)
 
     if args.action == "search":
-        print(f"Searching seeds for {len(queries)} queries...", file=sys.stderr)
+        print(
+            f"Searching seeds for {len(queries)} queries...", file=sys.stderr)
 
         for query in queries:
             seeds = finder.find_best_seeds(query, top_n=args.top)
             print(f"\nQuery: {query.id} - Found {len(seeds)} seeds")
             for i, seed in enumerate(seeds[:args.top]):
-                print(f"  {i + 1}: {seed.subject_id} at q={seed.query_pos}, s={seed.subject_pos}")
+                print(
+                    f"  {i + 1}: {seed.subject_id} at q={seed.query_pos}, s={seed.subject_pos}")
 
     elif args.action == "cluster":
         for query in queries:

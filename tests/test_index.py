@@ -1,8 +1,7 @@
 """Tests for k-mer index."""
 
-import pytest
-from blastmini.index import KmerIndex, build_index_from_fasta, reverse_complement, canonical_kmer
-from blastmini.models import SequenceRecord
+from blastmini.index import (KmerIndex, build_index_from_fasta, canonical_kmer,
+                             reverse_complement)
 
 
 def test_reverse_complement():
@@ -13,7 +12,8 @@ def test_reverse_complement():
 
 def test_canonical_kmer():
     assert canonical_kmer("ATCG") == "ATCG"
-    assert canonical_kmer("CGAT") == "ATCG"  # reverse complement of CGAT is ATCG
+    # reverse complement of CGAT is ATCG
+    assert canonical_kmer("CGAT") == "ATCG"
     assert canonical_kmer("AAAA") == "AAAA"
 
 

@@ -17,16 +17,16 @@ import json
 import os
 import sys
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple, Optional, Union, Iterator
 from dataclasses import dataclass
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+from .io import load_index, parse_fasta, save_index
 from .models import SequenceRecord
-from .io import parse_fasta, save_index, load_index
-
 
 # ============================================================================
 # DNA Utilities
 # ============================================================================
+
 
 def reverse_complement(seq: str) -> str:
     """Compute the reverse complement of a DNA sequence.
@@ -221,7 +221,7 @@ class KmerIndex:
             keep_kmers = {
                 kmer for kmer, count in freq.items()
                 if count >= min_kmer_occurrences
-                   and (max_kmer_occurrences is None or count <= max_kmer_occurrences)
+                and (max_kmer_occurrences is None or count <= max_kmer_occurrences)
             }
         else:
             keep_kmers = None
@@ -234,7 +234,8 @@ class KmerIndex:
         # Progress indicator (simple)
         total_records = len(records)
         if progress and total_records > 0:
-            print(f"Indexing {total_records} sequences with k={k}...", file=sys.stderr)
+            print(
+                f"Indexing {total_records} sequences with k={k}...", file=sys.stderr)
 
         for idx, rec in enumerate(records):
             seq = rec.sequence.upper()
@@ -254,7 +255,8 @@ class KmerIndex:
                 seen_kmers.add(kmer)
 
             if progress and (idx + 1) % 100 == 0:
-                print(f"  Processed {idx + 1}/{total_records} sequences...", file=sys.stderr)
+                print(
+                    f"  Processed {idx + 1}/{total_records} sequences...", file=sys.stderr)
 
         # Update statistics
         index_obj.stats = IndexStats(
@@ -393,7 +395,8 @@ class KmerIndex:
         Returns:
             List of (kmer, count) tuples sorted by count descending.
         """
-        counts = [(kmer, len(positions)) for kmer, positions in self.index.items()]
+        counts = [(kmer, len(positions))
+                  for kmer, positions in self.index.items()]
 
         # Apply filters
         if min_count > 1 or max_count is not None:
@@ -533,7 +536,8 @@ class KmerIndex:
 
         # Update statistics
         new_idx.stats = IndexStats(
-            total_kmers=sum(len(positions) for positions in new_idx.index.values()),
+            total_kmers=sum(len(positions)
+                            for positions in new_idx.index.values()),
             unique_kmers=kept_kmers,
             total_sequences=self.stats.total_sequences,
             total_length=self.stats.total_length,
@@ -598,7 +602,8 @@ def build_index_from_fasta(
         >>> idx = build_index_from_fasta("database.fa", k=11, output_file="index.json")
     """
     if progress:
-        print(f"Building index from {fasta_file} with k={k}...", file=sys.stderr)
+        print(
+            f"Building index from {fasta_file} with k={k}...", file=sys.stderr)
 
     idx = KmerIndex.build_from_fasta(
         fasta_file=fasta_file,
@@ -642,12 +647,14 @@ def main():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(description="k-mer index construction tool")
+    parser = argparse.ArgumentParser(
+        description="k-mer index construction tool")
     parser.add_argument("action", choices=["build", "stats", "lookup"],
                         help="Action to perform")
     parser.add_argument("-f", "--fasta", help="Input FASTA file")
     parser.add_argument("-i", "--index", help="Index file")
-    parser.add_argument("-k", "--kmer", type=int, default=11, help="k-mer size")
+    parser.add_argument("-k", "--kmer", type=int,
+                        default=11, help="k-mer size")
     parser.add_argument("-o", "--output", help="Output file")
     parser.add_argument("--lookup", help="k-mer to lookup")
     parser.add_argument("--canonical", action="store_true", default=True,

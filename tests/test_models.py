@@ -1,7 +1,8 @@
 """Tests for data models."""
 
 import pytest
-from blastmini.models import SequenceRecord, Hit, AlignmentConfig
+
+from blastmini.models import AlignmentConfig, Hit, SequenceRecord
 
 
 def test_sequence_record_creation():

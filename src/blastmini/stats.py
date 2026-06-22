@@ -18,19 +18,17 @@ Key features:
 import math
 import random
 import sys
-from typing import List, Tuple, Optional, Dict, Any, Union
 from dataclasses import dataclass, field
-from collections import defaultdict
-import numpy as np
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from .models import Hit, AlignmentConfig
-from .extension import SeedExtender, ExtensionResult
-from .scoring import HitScorer, ScoredHit
-from .models import SequenceRecord
+from .extension import SeedExtender
+from .models import AlignmentConfig, Hit, SequenceRecord
+from .scoring import HitScorer
 
 # ============================================================================
 # Statistical Data Structures
 # ============================================================================
+
 
 @dataclass
 class ScoreDistribution:
@@ -76,7 +74,8 @@ class ScoreDistribution:
 
         # Calculate standard deviation
         if self.n_samples > 1:
-            variance = sum((s - self.mean) ** 2 for s in self.scores) / (self.n_samples - 1)
+            variance = sum((s - self.mean) **
+                           2 for s in self.scores) / (self.n_samples - 1)
             self.std = math.sqrt(variance)
         else:
             self.std = 0.0
@@ -192,7 +191,8 @@ class ScoreDistribution:
             y_mean = sum(y) / n
 
             # Slope = -λ
-            numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
+            numerator = sum((x[i] - x_mean) * (y[i] - y_mean)
+                            for i in range(n))
             denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
 
             if denominator == 0:
@@ -211,7 +211,7 @@ class ScoreDistribution:
 
             return (lambda_param, K_param)
 
-        except:
+        except Exception:
             return (0.1, 0.1)
 
     def __repr__(self) -> str:
@@ -320,7 +320,8 @@ class SignificanceEstimator:
         self.min_score_threshold = min_score_threshold
 
         # Initialize components
-        self.seed_extender = SeedExtender(config=self.config, track_stats=False)
+        self.seed_extender = SeedExtender(
+            config=self.config, track_stats=False)
         self.hit_scorer = HitScorer(config=self.config)
 
         # Cached distributions
@@ -373,7 +374,8 @@ class SignificanceEstimator:
 
             # Get some random seeds (simplified)
             # For efficiency, we only take a sample of subject sequences
-            subject_sample = self._sample_subjects(subject_sequences, max_subjects=5)
+            subject_sample = self._sample_subjects(
+                subject_sequences, max_subjects=5)
 
             # Generate random alignments
             for subject_id, subject_seq in subject_sample.items():
@@ -496,13 +498,14 @@ class SignificanceEstimator:
                 else:
                     pvalue = 1.0
                 evalue = pvalue * db_size
-            except:
+            except Exception:
                 pvalue = 1.0
                 evalue = 1.0
         elif self.background_distribution is not None:
             # Use empirical distribution
             pvalue = self.background_distribution.get_pvalue(raw_score)
-            evalue = self.background_distribution.get_evalue(raw_score, db_size)
+            evalue = self.background_distribution.get_evalue(
+                raw_score, db_size)
             lambda_param, K_param = self.background_distribution.estimate_extreme_params()
         else:
             # Fallback: simple heuristic
@@ -563,7 +566,8 @@ class SignificanceEstimator:
             return []
 
         if progress:
-            print(f"Estimating significance for {len(hits)} hits...", file=sys.stderr)
+            print(
+                f"Estimating significance for {len(hits)} hits...", file=sys.stderr)
 
         results = []
         for i, hit in enumerate(hits):
@@ -619,7 +623,8 @@ class SignificanceEstimator:
             return subject_sequences
 
         subject_ids = list(subject_sequences.keys())
-        sampled_ids = random.sample(subject_ids, min(max_subjects, len(subject_ids)))
+        sampled_ids = random.sample(
+            subject_ids, min(max_subjects, len(subject_ids)))
 
         return {sid: subject_sequences[sid] for sid in sampled_ids}
 
@@ -698,7 +703,8 @@ def _format_text(results: List[SignificanceResult]) -> str:
     for i, result in enumerate(results[:20]):
         status = "✓ SIGNIFICANT" if result.is_significant else "✗ NOT SIGNIFICANT"
         lines.append(f"{i + 1}. Subject: {result.hit.subject_id}")
-        lines.append(f"   Score: {result.raw_score} (bitscore: {result.bit_score:.1f})")
+        lines.append(
+            f"   Score: {result.raw_score} (bitscore: {result.bit_score:.1f})")
         lines.append(f"   E-value: {result.evalue:.2e}")
         lines.append(f"   P-value: {result.pvalue:.2e}")
         lines.append(f"   Status: {status}")
@@ -756,11 +762,11 @@ def _format_json(results: List[SignificanceResult]) -> str:
 def main():
     """Simple command line interface for testing statistical significance."""
     import argparse
-    import json
 
     from .io import load_hits_from_tsv, parse_fasta
 
-    parser = argparse.ArgumentParser(description="Statistical significance tool")
+    parser = argparse.ArgumentParser(
+        description="Statistical significance tool")
     parser.add_argument("-i", "--input", required=True,
                         help="Input hits file (TSV)")
     parser.add_argument("-d", "--database", required=True,
@@ -784,7 +790,8 @@ def main():
     subject_sequences = {}
     for record in parse_fasta(args.database):
         subject_sequences[record.id] = record.sequence
-    print(f"Loaded {len(subject_sequences)} database sequences", file=sys.stderr)
+    print(f"Loaded {len(subject_sequences)} database sequences",
+          file=sys.stderr)
 
     # Load query
     query = None
@@ -792,7 +799,7 @@ def main():
         records = list(parse_fasta(args.query))
         if records:
             query = records[0]
-    except:
+    except Exception:
         query = args.query
 
     if query is None:
@@ -810,12 +817,6 @@ def main():
 
     # Estimate background distribution
     print("\nEstimating background distribution...", file=sys.stderr)
-    dist = estimator.estimate_background_distribution(
-        query=query,
-        subject_sequences=subject_sequences,
-        n_permutations=args.permutations,
-        progress=True
-    )
 
     # Estimate extreme value distribution
     print("\nFitting extreme value distribution...", file=sys.stderr)

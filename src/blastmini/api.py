@@ -26,21 +26,20 @@ Examples:
     >>> print(f"Best hit: {top.subject_id}, score={top.raw_score}")
 """
 
-import os
-import sys
-import tempfile
-from typing import Optional, List, Dict, Any, Union, Iterator, Callable, Tuple
-from pathlib import Path
-from dataclasses import dataclass, field
 import json
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from .models import SequenceRecord, Hit, AlignmentConfig
-from .io import parse_fasta, save_hits_to_tsv, load_hits_from_tsv
-from .index import KmerIndex, build_index_from_fasta, load_index_from_file
-from .seeding import SeedFinder, Seed
-from .extension import SeedExtender, ExtensionResult
-from .scoring import HitScorer, ScoredHit, format_hits_as_text, format_hits_as_tsv
-from .stats import SignificanceEstimator, SignificanceResult, format_significance_results
+from .extension import SeedExtender
+from .index import KmerIndex, load_index_from_file
+from .io import parse_fasta
+from .models import AlignmentConfig, SequenceRecord
+from .scoring import (HitScorer, ScoredHit, format_hits_as_text,
+                      format_hits_as_tsv)
+from .seeding import SeedFinder
+from .stats import SignificanceEstimator
 
 # ============================================================================
 # Progress Callback Types
@@ -819,11 +818,11 @@ def main():
             query = queries[0]
         else:
             query = args.query
-    except:
+    except Exception:
         query = args.query
 
     # Search
-    print(f"Searching query...", file=sys.stderr)
+    print("Searching query...", file=sys.stderr)
     result = blast.search(query, top_n=args.top)
 
     print(f"\nFound {result.num_hits} hits in {result.search_time:.2f}s")

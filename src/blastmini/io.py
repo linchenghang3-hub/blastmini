@@ -8,9 +8,9 @@ external dependencies like Biopython.
 import gzip
 import json
 import os
-from typing import Dict, List, Iterator, Optional, Union, Any
+from typing import Any, Dict, Iterator, List, Union
 
-from .models import SequenceRecord, Hit, AlignmentConfig
+from .models import Hit, SequenceRecord
 
 
 def parse_fasta(filepath: Union[str, os.PathLike]) -> Iterator[SequenceRecord]:
@@ -71,11 +71,13 @@ def _parse_fasta_stream(handle) -> Iterator[SequenceRecord]:
             # Parse new header: ID first token, rest as description
             header_parts = line[1:].split(maxsplit=1)
             current_id = header_parts[0].strip()
-            current_desc = header_parts[1].strip() if len(header_parts) > 1 else ""
+            current_desc = header_parts[1].strip() if len(
+                header_parts) > 1 else ""
 
             # Basic validation of ID
             if not current_id:
-                raise ValueError(f"Empty sequence ID on line {line_num}: {line}")
+                raise ValueError(
+                    f"Empty sequence ID on line {line_num}: {line}")
 
         # Parse sequence line (non-header)
         else:
@@ -89,7 +91,8 @@ def _parse_fasta_stream(handle) -> Iterator[SequenceRecord]:
     # Yield the last record
     if current_id:
         if not current_seq_lines:
-            raise ValueError(f"Sequence record '{current_id}' has no sequence data")
+            raise ValueError(
+                f"Sequence record '{current_id}' has no sequence data")
         yield SequenceRecord(
             id=current_id,
             description=current_desc,
@@ -163,7 +166,8 @@ def load_hits_from_tsv(input_file: Union[str, os.PathLike]) -> List[Hit]:
 
             parts = line.split('\t')
             if len(parts) < 6:
-                raise ValueError(f"Line {line_num}: Expected at least 6 columns, got {len(parts)}")
+                raise ValueError(
+                    f"Line {line_num}: Expected at least 6 columns, got {len(parts)}")
 
             try:
                 hit = Hit(

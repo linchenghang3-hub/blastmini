@@ -10,29 +10,25 @@ Usage:
     blastmini view -r results.tsv --format text
 """
 
-import sys
-import os
 import argparse
+import os
+import sys
 import time
-import json
-from typing import Optional, List, Dict, Any
-from pathlib import Path
 
-from .models import SequenceRecord, Hit, AlignmentConfig
-from .io import parse_fasta, save_hits_to_tsv, load_hits_from_tsv, get_sequence_stats
-from .index import KmerIndex, build_index_from_fasta, load_index_from_file
-from .seeding import SeedFinder, Seed
-from .extension import SeedExtender, ExtensionResult
-from .scoring import (
-    HitScorer, ScoredHit, format_hits_as_text, format_hits_as_tsv,
-    format_hits_as_json, format_hits_as_bed, visualize_alignment
-)
+from .extension import SeedExtender
+from .index import build_index_from_fasta, load_index_from_file
+from .io import load_hits_from_tsv, parse_fasta
+from .models import AlignmentConfig
+from .scoring import (HitScorer, ScoredHit, format_hits_as_bed,
+                      format_hits_as_json, format_hits_as_text,
+                      format_hits_as_tsv, visualize_alignment)
+from .seeding import SeedFinder
 from .stats import SignificanceEstimator, format_significance_results
-
 
 # ============================================================================
 # Utility Functions
 # ============================================================================
+
 
 def print_error(message: str) -> None:
     """Print error message to stderr."""
@@ -92,7 +88,8 @@ def cmd_build(args: argparse.Namespace) -> int:
     print_info(f"  Canonical: {not args.no_canonical}")
 
     if args.min_occurrences > 1 or args.max_occurrences is not None:
-        print_info(f"  Filter: min={args.min_occurrences}, max={args.max_occurrences or 'unlimited'}")
+        print_info(
+            f"  Filter: min={args.min_occurrences}, max={args.max_occurrences or 'unlimited'}")
 
     try:
         # Build index
@@ -108,7 +105,7 @@ def cmd_build(args: argparse.Namespace) -> int:
 
         # Print statistics
         stats = idx.stats
-        print_success(f"Index built successfully")
+        print_success("Index built successfully")
         print(f"  Sequences: {stats.total_sequences:,}")
         print(f"  Total length: {stats.total_length:,} bp")
         print(f"  Unique k-mers: {stats.unique_kmers:,}")
@@ -135,7 +132,8 @@ def cmd_search(args: argparse.Namespace) -> int:
         print_error(f"Failed to load index: {e}")
         return 1
 
-    print_info(f"  k-mer size: {idx.k}, sequences: {idx.stats.total_sequences:,}")
+    print_info(
+        f"  k-mer size: {idx.k}, sequences: {idx.stats.total_sequences:,}")
 
     # Load queries
     print_info(f"Loading queries from {args.query}")
@@ -166,7 +164,8 @@ def cmd_search(args: argparse.Namespace) -> int:
             print_error(f"Failed to load subject sequences: {e}")
             return 1
     else:
-        print_error("Database FASTA file required for extension (--database-fasta)")
+        print_error(
+            "Database FASTA file required for extension (--database-fasta)")
         return 1
 
     # Create configuration
@@ -195,7 +194,8 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     for query_idx, query in enumerate(queries, 1):
         if not args.quiet:
-            print_info(f"Processing query {query_idx}/{len(queries)}: {query.id}")
+            print_info(
+                f"Processing query {query_idx}/{len(queries)}: {query.id}")
 
         # Find seeds
         seeds = finder.find_best_seeds(
@@ -236,7 +236,8 @@ def cmd_search(args: argparse.Namespace) -> int:
         all_results.extend(scored_hits)
 
     # Sort all results
-    all_results.sort(key=lambda s: (s.raw_score, s.identity_percent), reverse=True)
+    all_results.sort(key=lambda s: (
+        s.raw_score, s.identity_percent), reverse=True)
 
     # Assign global ranks
     for i, scored in enumerate(all_results):
@@ -277,7 +278,7 @@ def cmd_search(args: argparse.Namespace) -> int:
             print(format_hits_as_text(all_results, top_n=args.top))
 
     # Summary
-    print_info(f"Summary:")
+    print_info("Summary:")
     print(f"  Queries processed: {len(queries)}")
     print(f"  Total seeds found: {total_seeds}")
     print(f"  Total extensions: {total_extensions}")
@@ -299,7 +300,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
 
     stats = idx.stats
 
-    print(f"Index Statistics")
+    print("Index Statistics")
     print("=" * 40)
     print(f"  k-mer size: {stats.kmer_size}")
     print(f"  Sequences: {stats.total_sequences:,}")
@@ -309,13 +310,14 @@ def cmd_stats(args: argparse.Namespace) -> int:
     print(f"  Memory estimate: {stats.memory_estimate_mb:.2f} MB")
 
     if args.verbose:
-        print(f"  Average positions per k-mer: {stats.total_kmers / stats.unique_kmers:.2f}")
+        print(
+            f"  Average positions per k-mer: {stats.total_kmers / stats.unique_kmers:.2f}")
 
         # Get k-mer frequency distribution
         kmers_with_counts = idx.get_kmers_with_counts()
 
         if kmers_with_counts:
-            print(f"  Most frequent k-mers:")
+            print("  Most frequent k-mers:")
             for kmer, count in kmers_with_counts[:10]:
                 print(f"    {kmer}: {count} occurrences")
 
@@ -414,7 +416,8 @@ def cmd_significance(args: argparse.Namespace) -> int:
             print_error(f"Failed to load database: {e}")
             return 1
     else:
-        print_error("Database FASTA file required for significance estimation (--database)")
+        print_error(
+            "Database FASTA file required for significance estimation (--database)")
         return 1
 
     # Load query
@@ -445,14 +448,8 @@ def cmd_significance(args: argparse.Namespace) -> int:
 
     # Estimate background distribution
     if not args.quiet:
-        print_info(f"Estimating background distribution with {args.permutations} permutations...")
-
-    dist = estimator.estimate_background_distribution(
-        query=query,
-        subject_sequences=subject_sequences,
-        n_permutations=args.permutations,
-        progress=not args.quiet
-    )
+        print_info(
+            f"Estimating background distribution with {args.permutations} permutations...")
 
     # Estimate significance
     if not args.quiet:
@@ -468,7 +465,8 @@ def cmd_significance(args: argparse.Namespace) -> int:
 
     # Apply multiple testing correction
     if args.correction:
-        results = estimator.adjust_for_multiple_testing(results, method=args.correction)
+        results = estimator.adjust_for_multiple_testing(
+            results, method=args.correction)
 
     # Output results
     if args.output:
@@ -482,7 +480,7 @@ def cmd_significance(args: argparse.Namespace) -> int:
 
     # Summary
     significant = sum(1 for r in results if r.is_significant)
-    print_info(f"Summary:")
+    print_info("Summary:")
     print(f"  Hits analyzed: {len(results)}")
     print(f"  Significant hits: {significant}")
     print(f"  Time: {format_duration(time.time() - start_time)}")
@@ -833,7 +831,8 @@ def main() -> int:
         except Exception as e:
             print_error(f"Unexpected error: {e}")
             if args.func.__name__ in ['cmd_search', 'cmd_significance']:
-                print_info("Try running with --quiet to suppress progress messages")
+                print_info(
+                    "Try running with --quiet to suppress progress messages")
             return 1
     else:
         parser.print_help()

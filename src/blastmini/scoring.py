@@ -14,15 +14,14 @@ Key features:
     - Alignment visualization
 """
 
-import math
 import json
-from typing import List, Dict, Tuple, Optional, Union, Any, Set
-from dataclasses import dataclass, field
-from collections import defaultdict
+import math
 import sys
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
-from .models import SequenceRecord, Hit, AlignmentConfig
-from .extension import ExtensionResult
+from .models import AlignmentConfig, Hit
 
 # ============================================================================
 # Scoring Matrices
@@ -240,7 +239,8 @@ class HitScorer:
 
         # Calculate identity percentage
         if hit.alignment_length > 0:
-            identity_percent = (hit.identity_percent / 100)  # Already a percentage
+            # Already a percentage
+            identity_percent = (hit.identity_percent / 100)
             # Recalculate if needed
             if hit.query_alignment and hit.subject_alignment:
                 _, identity_count, _ = calculate_alignment_score(
@@ -322,7 +322,8 @@ class HitScorer:
         filtered = self._filter_hits(scored_hits)
 
         # Sort and rank
-        filtered.sort(key=lambda s: (s.raw_score, s.identity_percent), reverse=True)
+        filtered.sort(key=lambda s: (
+            s.raw_score, s.identity_percent), reverse=True)
 
         # Assign ranks
         for i, scored in enumerate(filtered):
@@ -388,7 +389,7 @@ class HitScorer:
         raw_scores = [s.raw_score for s in scored_hits]
         max_score = max(raw_scores) if raw_scores else 0
         min_score = min(raw_scores) if raw_scores else 0
-        score_range = max_score - min_score if max_score > min_score else 1
+        max_score - min_score if max_score > min_score else 1
 
         # Estimate expected score for random alignment
         # Using the scoring system properties
@@ -406,7 +407,8 @@ class HitScorer:
 
                 # Adjust for database size and query length
                 # More database sequences = more chance matches
-                effective_length = db_total_length - (query_length * len(scored_hits))
+                effective_length = db_total_length - \
+                    (query_length * len(scored_hits))
                 if effective_length < 0:
                     effective_length = db_total_length
 
@@ -500,7 +502,8 @@ class HitScorer:
                 if hit.query_start <= current.query_end + 10:
                     # Merge: extend the current hit
                     current.query_end = max(current.query_end, hit.query_end)
-                    current.subject_end = max(current.subject_end, hit.subject_end)
+                    current.subject_end = max(
+                        current.subject_end, hit.subject_end)
                     current.score = max(current.score, hit.score)
                     current.alignment_length = current.query_end - current.query_start
 
@@ -544,13 +547,16 @@ def format_hit_as_text(scored: ScoredHit, show_alignment: bool = True) -> str:
     lines = []
     lines.append(f"Rank: {scored.rank}")
     lines.append(f"Subject: {scored.hit.subject_id}")
-    lines.append(f"Score: {scored.raw_score} (bitscore: {scored.bit_score:.1f})")
+    lines.append(
+        f"Score: {scored.raw_score} (bitscore: {scored.bit_score:.1f})")
     lines.append(f"E-value: {scored.evalue:.2e}")
     lines.append(f"Identity: {scored.identity_percent:.1f}%")
     lines.append(f"Coverage: {scored.coverage_percent:.1f}%")
     lines.append(f"Alignment length: {scored.hit.alignment_length}")
-    lines.append(f"Query region: {scored.hit.query_start}-{scored.hit.query_end}")
-    lines.append(f"Subject region: {scored.hit.subject_start}-{scored.hit.subject_end}")
+    lines.append(
+        f"Query region: {scored.hit.query_start}-{scored.hit.query_end}")
+    lines.append(
+        f"Subject region: {scored.hit.subject_start}-{scored.hit.subject_end}")
 
     if show_alignment and scored.hit.query_alignment:
         lines.append("")
@@ -590,7 +596,7 @@ def format_hits_as_text(scored_hits: List[ScoredHit], top_n: int = 10) -> str:
 
 def format_hits_as_tsv(scored_hits: List[ScoredHit]) -> str:
     """Format hits as TSV with header matching Hit.tsv_header.
-    
+
     The column order is: query_id, subject_id, score, identity_percent,
     alignment_length, query_start, query_end, subject_start, subject_end,
     evalue, bit_score.

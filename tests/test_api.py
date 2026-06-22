@@ -1,8 +1,7 @@
 """Tests for the high-level API."""
 
-import pytest
-from blastmini.api import BlastMini, SearchResult, BatchSearchResult, quick_search
-from blastmini.models import AlignmentConfig
+from blastmini.api import (BatchSearchResult, BlastMini, SearchResult,
+                           quick_search)
 
 
 def test_blastmini_from_fasta(sample_fasta_file):
@@ -27,7 +26,8 @@ def test_blastmini_search_with_significance(sample_fasta_file):
     # Need to estimate background first for significance
     query = blast.subject_sequences["seq1"]
     blast.estimate_background(query, n_permutations=2)
-    result = blast.search(query, estimate_significance=True, significance_params={'n_permutations': 2})
+    result = blast.search(query, estimate_significance=True,
+                          significance_params={'n_permutations': 2})
     # Should have hits with significance info
     if result.hits:
         assert hasattr(result.hits[0], 'evalue')

@@ -1,8 +1,8 @@
 """pytest configuration and shared fixtures for blastmini tests."""
 
 import pytest
-from pathlib import Path
-from blastmini.models import SequenceRecord, AlignmentConfig
+
+from blastmini.models import AlignmentConfig, SequenceRecord
 
 
 @pytest.fixture

@@ -1,14 +1,14 @@
 """Tests for seed extension."""
 
-import pytest
-from blastmini.extension import SeedExtender, ExtensionResult
-from blastmini.seeding import Seed
-from blastmini.models import SequenceRecord, AlignmentConfig
+from blastmini.extension import ExtensionResult, SeedExtender
 from blastmini.index import KmerIndex
-from blastmini.seeding import SeedFinder
+from blastmini.models import AlignmentConfig, SequenceRecord
+from blastmini.seeding import Seed, SeedFinder
+
 
 def test_extension_result():
-    result = ExtensionResult("Q1", "S1", 0, 10, 0, 10, score=50, identity=8, mismatches=2,alignment_length=10)
+    result = ExtensionResult("Q1", "S1", 0, 10, 0, 10, score=50,
+                             identity=8, mismatches=2, alignment_length=10)
     assert result.identity_percent == 80.0
     assert result.to_hit().score == 50
 
@@ -34,7 +34,8 @@ def test_seed_extender_extend_seeds(sample_records):
     seeds = finder.find_seeds(query, max_seeds=10, progress=False)
     subject_sequences = {rec.id: rec.sequence for rec in sample_records}
     extender = SeedExtender()
-    results = extender.extend_seeds(query, seeds, subject_sequences, max_results=5, progress=False)
+    results = extender.extend_seeds(
+        query, seeds, subject_sequences, max_results=5, progress=False)
     assert len(results) > 0
     for result in results:
         assert result.score >= 0

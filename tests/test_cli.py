@@ -1,12 +1,8 @@
 """Tests for the command-line interface (cli.py)."""
 
+import json
 import subprocess
 import sys
-import json
-from pathlib import Path
-
-import pytest
-from blastmini.cli import main
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess:
@@ -69,8 +65,9 @@ def test_cli_stats(sample_fasta_file, tmp_path):
     """Test the 'stats' command."""
     # First build an index
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     # Then get stats
     result = run_cli("stats", "-i", str(index_file))
     assert result.returncode == 0
@@ -82,8 +79,9 @@ def test_cli_stats(sample_fasta_file, tmp_path):
 def test_cli_stats_verbose(sample_fasta_file, tmp_path):
     """Test the 'stats' command with verbose flag."""
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     result = run_cli("stats", "-i", str(index_file), "-v")
     assert result.returncode == 0
     assert "Average positions per k-mer" in result.stdout
@@ -94,13 +92,15 @@ def test_cli_search(sample_fasta_file, tmp_path):
     """Test the 'search' command."""
     # Build index
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     # Search
     output_file = tmp_path / "results.tsv"
     result = run_cli(
         "search",
-        "-q", str(sample_fasta_file),  # Use same file as query (contains seq1 and seq2)
+        # Use same file as query (contains seq1 and seq2)
+        "-q", str(sample_fasta_file),
         "-d", str(index_file),
         "--database-fasta", str(sample_fasta_file),
         "-o", str(output_file),
@@ -121,8 +121,9 @@ def test_cli_search(sample_fasta_file, tmp_path):
 def test_cli_search_text_output(sample_fasta_file, tmp_path):
     """Test the 'search' command with text output (stdout)."""
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     result = run_cli(
         "search",
         "-q", str(sample_fasta_file),
@@ -139,8 +140,9 @@ def test_cli_search_text_output(sample_fasta_file, tmp_path):
 def test_cli_search_json_output(sample_fasta_file, tmp_path):
     """Test the 'search' command with JSON output."""
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     output_file = tmp_path / "results.json"
     result = run_cli(
         "search",
@@ -163,8 +165,9 @@ def test_cli_search_json_output(sample_fasta_file, tmp_path):
 def test_cli_search_bed_output(sample_fasta_file, tmp_path):
     """Test the 'search' command with BED output."""
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     output_file = tmp_path / "results.bed"
     result = run_cli(
         "search",
@@ -188,8 +191,9 @@ def test_cli_view(sample_fasta_file, tmp_path):
     """Test the 'view' command."""
     # Build index and search first
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     results_file = tmp_path / "results.tsv"
     run_cli(
         "search",
@@ -201,7 +205,7 @@ def test_cli_view(sample_fasta_file, tmp_path):
         "--format", "tsv",
         "--quiet"
     )
-    
+
     # View results
     result = run_cli("view", "-r", str(results_file), "--top", "3")
     assert result.returncode == 0
@@ -212,8 +216,9 @@ def test_cli_view_with_alignment(sample_fasta_file, tmp_path):
     """Test the 'view' command with alignment visualization."""
     # Build index and search first
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     results_file = tmp_path / "results.tsv"
     run_cli(
         "search",
@@ -225,7 +230,7 @@ def test_cli_view_with_alignment(sample_fasta_file, tmp_path):
         "--format", "tsv",
         "--quiet"
     )
-    
+
     result = run_cli("view", "-r", str(results_file), "--show-alignment")
     assert result.returncode == 0
     assert "Alignment Visualization" in result.stdout
@@ -236,8 +241,9 @@ def test_cli_view_json_format(sample_fasta_file, tmp_path):
     """Test the 'view' command with JSON format."""
     # Build index and search first
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     results_file = tmp_path / "results.tsv"
     run_cli(
         "search",
@@ -249,7 +255,7 @@ def test_cli_view_json_format(sample_fasta_file, tmp_path):
         "--format", "tsv",
         "--quiet"
     )
-    
+
     result = run_cli("view", "-r", str(results_file), "--format", "json")
     assert result.returncode == 0
     data = json.loads(result.stdout)
@@ -260,8 +266,9 @@ def test_cli_significance(sample_fasta_file, tmp_path):
     """Test the 'significance' command (with small permutation count)."""
     # Build index and search first
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     results_file = tmp_path / "results.tsv"
     run_cli(
         "search",
@@ -273,7 +280,7 @@ def test_cli_significance(sample_fasta_file, tmp_path):
         "--format", "tsv",
         "--quiet"
     )
-    
+
     # Estimate significance with small number of permutations
     output_file = tmp_path / "significance.txt"
     result = run_cli(
@@ -296,8 +303,9 @@ def test_cli_significance_with_correction(sample_fasta_file, tmp_path):
     """Test the 'significance' command with FDR correction."""
     # Build index and search first
     index_file = tmp_path / "index.json"
-    run_cli("build", "-i", str(sample_fasta_file), "-o", str(index_file), "-k", "3", "-q")
-    
+    run_cli("build", "-i", str(sample_fasta_file),
+            "-o", str(index_file), "-k", "3", "-q")
+
     results_file = tmp_path / "results.tsv"
     run_cli(
         "search",
@@ -309,7 +317,7 @@ def test_cli_significance_with_correction(sample_fasta_file, tmp_path):
         "--format", "tsv",
         "--quiet"
     )
-    
+
     result = run_cli(
         "significance",
         "-r", str(results_file),
