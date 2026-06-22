@@ -26,7 +26,7 @@ import numpy as np
 from .models import Hit, AlignmentConfig
 from .extension import SeedExtender, ExtensionResult
 from .scoring import HitScorer, ScoredHit
-
+from .models import SequenceRecord
 
 # ============================================================================
 # Statistical Data Structures
