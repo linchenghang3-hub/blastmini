@@ -1,2 +1,0 @@
-[console_scripts]
-blastmini = blastmini.cli:main
